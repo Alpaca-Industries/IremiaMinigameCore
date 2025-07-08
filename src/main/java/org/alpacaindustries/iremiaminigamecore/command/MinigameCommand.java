@@ -30,12 +30,20 @@ public class MinigameCommand implements CommandExecutor, TabCompleter {
       .append(Component.text("] ", NamedTextColor.DARK_GRAY));
 
   public MinigameCommand(IremiaMinigameCorePlugin plugin) {
+    if (plugin == null) {
+      throw new IllegalArgumentException("Plugin cannot be null");
+    }
+
     this.plugin = plugin;
     this.minigameManager = plugin.getMinigameManager();
 
     // Register command the traditional way
-    plugin.getCommand("minigame").setExecutor(this);
-    plugin.getCommand("minigame").setTabCompleter(this);
+    if (plugin.getCommand("minigame") != null) {
+      plugin.getCommand("minigame").setExecutor(this);
+      plugin.getCommand("minigame").setTabCompleter(this);
+    } else {
+      plugin.getLogger().warning("Failed to register minigame command - command not found in plugin.yml");
+    }
   }
 
   @Override
@@ -47,29 +55,35 @@ public class MinigameCommand implements CommandExecutor, TabCompleter {
 
     String subCommand = args[0].toLowerCase();
 
-    switch (subCommand) {
-      case "join":
-        return handleJoinCommand(sender, args);
-      case "leave":
-        return handleLeaveCommand(sender, args);
-      case "create":
-        return handleCreateCommand(sender, args);
-      case "list":
-        return handleListCommand(sender, args);
-      case "start":
-        return handleStartCommand(sender, args);
-      case "end":
-        return handleEndCommand(sender, args);
-      case "setmin":
-        return handleSetMinCommand(sender, args);
-      case "setmax":
-        return handleSetMaxCommand(sender, args);
-      case "setspawn":
-        return handleSetSpawnCommand(sender, args);
-      case "help":
-      default:
-        showHelp(sender);
-        return true;
+    try {
+      switch (subCommand) {
+        case "join":
+          return handleJoinCommand(sender, args);
+        case "leave":
+          return handleLeaveCommand(sender, args);
+        case "create":
+          return handleCreateCommand(sender, args);
+        case "list":
+          return handleListCommand(sender, args);
+        case "start":
+          return handleStartCommand(sender, args);
+        case "end":
+          return handleEndCommand(sender, args);
+        case "setmin":
+          return handleSetMinCommand(sender, args);
+        case "setmax":
+          return handleSetMaxCommand(sender, args);
+        case "setspawn":
+          return handleSetSpawnCommand(sender, args);
+        case "help":
+        default:
+          showHelp(sender);
+          return true;
+      }
+    } catch (Exception e) {
+      sender.sendMessage(PREFIX.append(Component.text("An error occurred: " + e.getMessage(), NamedTextColor.RED)));
+      plugin.getLogger().warning("Error in command execution: " + e.getMessage());
+      return true;
     }
   }
 

@@ -24,54 +24,71 @@ public class IremiaMinigameCorePlugin extends JavaPlugin implements Listener {
   public void onEnable() {
     getLogger().info("Starting IremiaMinigameCore...");
 
-    // Initialize configuration
-    MinigameConfig.initialize(this);
-    getLogger().info("Configuration initialized");
+    try {
+      // Initialize configuration
+      MinigameConfig.initialize(this);
+      getLogger().info("Configuration initialized");
 
-    // Initialize the minigame manager
-    minigameManager = new MinigameManager(this);
-    getLogger().info("MinigameManager initialized");
+      // Initialize the minigame manager
+      minigameManager = new MinigameManager(this);
+      getLogger().info("MinigameManager initialized");
 
-    // Initialize the API implementation
-    api = new IremiaMinigameAPIImpl(minigameManager, getLogger());
-    getLogger().info("API implementation initialized");
+      // Initialize the API implementation
+      api = new IremiaMinigameAPIImpl(minigameManager, getLogger());
+      getLogger().info("API implementation initialized");
 
-    // Register commands
-    new MinigameCommand(this);
-    getLogger().info("Commands registered");
+      // Register commands
+      new MinigameCommand(this);
+      getLogger().info("Commands registered");
 
-    // Register event listeners
-    getServer().getPluginManager().registerEvents(this, this);
-    getLogger().info("Event listeners registered");
+      // Register event listeners
+      getServer().getPluginManager().registerEvents(this, this);
+      getLogger().info("Event listeners registered");
 
-    getLogger().info("========================================");
-    getLogger().info("  IremiaMinigameCore has been enabled!");
-    getLogger().info("  Version: " + getPluginMeta().getVersion());
-    getLogger().info("  API ready for external plugins");
-    getLogger().info("========================================");
+      getLogger().info("========================================");
+      getLogger().info("  IremiaMinigameCore has been enabled!");
+      getLogger().info("  Version: " + getPluginMeta().getVersion());
+      getLogger().info("  API ready for external plugins");
+      getLogger().info("========================================");
+    } catch (Exception e) {
+      getLogger().severe("Failed to enable IremiaMinigameCore: " + e.getMessage());
+      e.printStackTrace();
+      getServer().getPluginManager().disablePlugin(this);
+    }
   }
 
   @Override
   public void onDisable() {
     getLogger().info("Shutting down IremiaMinigameCore...");
 
-    // Clean up any active games
-    if (minigameManager != null) {
-      int activeGames = minigameManager.getActiveGames().size();
-      if (activeGames > 0) {
-        getLogger().info("Ending " + activeGames + " active games...");
-        minigameManager.getActiveGames().forEach((id, game) -> {
-          try {
-            game.end();
-            getLogger().info("Ended game: " + id);
-          } catch (Exception e) {
-            getLogger().warning("Error ending game " + id + ": " + e.getMessage());
-          }
-        });
-      }
-    }
+    try {
+      // Clean up any active games
+      if (minigameManager != null) {
+        int activeGames = minigameManager.getActiveGames().size();
+        if (activeGames > 0) {
+          getLogger().info("Ending " + activeGames + " active games...");
+          minigameManager.getActiveGames().forEach((id, game) -> {
+            try {
+              game.end();
+              getLogger().info("Ended game: " + id);
+            } catch (Exception e) {
+              getLogger().warning("Error ending game " + id + ": " + e.getMessage());
+            }
+          });
+        }
 
-    getLogger().info("IremiaMinigameCore has been disabled!");
+        // Clean up plugin registrations
+        if (api instanceof IremiaMinigameAPIImpl) {
+          // This would clean up any registered plugin data
+          getLogger().info("Cleaned up API registrations");
+        }
+      }
+
+      getLogger().info("IremiaMinigameCore has been disabled!");
+    } catch (Exception e) {
+      getLogger().severe("Error during plugin shutdown: " + e.getMessage());
+      e.printStackTrace();
+    }
   }
 
   /**

@@ -4,7 +4,6 @@ plugins {
     id 'com.gradleup.shadow' version '8.3.6'
     id 'java'
     id 'maven-publish'
-    id 'signing'
 }
 
 group = "org.alpacaindustries.iremiaminigamecore"
@@ -104,84 +103,22 @@ tasks.register('printProjectName') {
 }
 
 publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-            artifact shadowJar
-            groupId = project.group
-            artifactId = project.name
-            version = project.version
-        }
-    }
-
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/Alpaca-Industries/IremiaMinigameCore")
+            url = "https://maven.pkg.github.com/Alpaca-Industries/IremiaMinigameCore"
             credentials {
                 username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
                 password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
             }
         }
-
-        // For local publishing during development
-        maven {
-            name = "LocalRepository"
-            url = uri("${buildDir}/repo")
+    }
+    publications {
+        gpr(MavenPublication) {
+            artifact shadowJar // publish the shadowJar instead
+            groupId = project.group.toString()
+            artifactId = rootProject.name
+            version = project.version
         }
-    }
-}
-
-// Add a task to publish to local repository for testing
-tasks.register('publishLocal') {
-    dependsOn 'publishMavenPublicationToLocalRepositoryRepository'
-
-    doLast {
-        println "Published to local repository: ${buildDir}/repo"
-        println "You can now test this in other projects by adding:"
-        println "  repositories { flatDir { dirs '${buildDir}/repo' } }"
-    }
-}
-
-// Add a task to publish to GitHub Packages
-tasks.register('publishToGitHub') {
-    dependsOn 'publishMavenPublicationToGitHubPackagesRepository'
-
-    doLast {
-        println "Published to GitHub Packages"
-        println "Version: ${version}"
-        println "Repository: https://maven.pkg.github.com/alpacaindustries/iremiaminigamecore"
-    }
-}
-
-// Create a distribution task for releases
-tasks.register('dist') {
-    dependsOn shadowJar
-
-    doLast {
-        def distDir = file("${buildDir}/dist")
-        distDir.mkdirs()
-
-        // Copy the shadow jar to dist directory
-        copy {
-            from shadowJar.archiveFile.get().asFile
-            into distDir
-            rename { "${rootProject.name}.jar" }
-        }
-
-        println "Distribution created in: ${distDir}"
-    }
-}
-
-tasks.register('release') {
-    dependsOn build, dist
-
-    doLast {
-        println "========================================"
-        println "  Release Build Complete!"
-        println "  Version: ${version}"
-        println "  Artifact: ${shadowJar.archiveFile.get().asFile.name}"
-        println "  Distribution: ${buildDir}/dist/${rootProject.name}.jar"
-        println "========================================"
     }
 }

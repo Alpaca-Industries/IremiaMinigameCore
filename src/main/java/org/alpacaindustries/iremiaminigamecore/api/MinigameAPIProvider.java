@@ -43,7 +43,7 @@ public class MinigameAPIProvider {
     if (apiInstance != null) {
       // Clean up all plugin registrations
       for (Plugin plugin : Bukkit.getPluginManager().getPlugins()) {
-        if (plugin.isEnabled() && !plugin.equals(Bukkit.getPluginManager().getPlugin("IremiaMinigamePlugin"))) {
+        if (plugin.isEnabled() && !plugin.equals(Bukkit.getPluginManager().getPlugin("IremiaMinigameCore"))) {
           apiImpl.cleanupPlugin(plugin);
         }
       }

@@ -31,6 +31,15 @@ public class MinigameManager {
    * Thread-safe for dynamic registration during runtime
    */
   public void registerMinigame(String id, MinigameFactory factory) {
+    if (id == null || id.trim().isEmpty()) {
+      plugin.getLogger().warning("Cannot register minigame: ID is null or empty");
+      return;
+    }
+    if (factory == null) {
+      plugin.getLogger().warning("Cannot register minigame: factory is null");
+      return;
+    }
+
     gameFactories.put(id.toLowerCase(), factory);
     plugin.getLogger().info("Registered minigame type: " + id);
   }
@@ -43,6 +52,15 @@ public class MinigameManager {
    * @return The created minigame or null if type wasn't found
    */
   public Minigame createMinigame(String typeId, String instanceId) {
+    if (typeId == null || typeId.trim().isEmpty()) {
+      plugin.getLogger().warning("Cannot create minigame: typeId is null or empty");
+      return null;
+    }
+    if (instanceId == null || instanceId.trim().isEmpty()) {
+      plugin.getLogger().warning("Cannot create minigame: instanceId is null or empty");
+      return null;
+    }
+
     MinigameFactory factory = gameFactories.get(typeId.toLowerCase());
     if (factory == null) {
       plugin.getLogger().warning("Unknown minigame type: " + typeId);
@@ -57,16 +75,27 @@ public class MinigameManager {
       return null;
     }
 
-    Minigame minigame = factory.createMinigame(fullId, this);
-    activeGames.put(fullId, minigame);
+    try {
+      Minigame minigame = factory.createMinigame(fullId, this);
+      if (minigame == null) {
+        plugin.getLogger().warning("Factory returned null minigame for type: " + typeId);
+        return null;
+      }
 
-    // Add auto-cleanup when game ends
-    minigame.addEndListener(this::cleanupEndedGame);
+      activeGames.put(fullId, minigame);
 
-    // Initialize the minigame
-    minigame.initialize();
+      // Add auto-cleanup when game ends
+      minigame.addEndListener(this::cleanupEndedGame);
 
-    return minigame;
+      // Initialize the minigame
+      minigame.initialize();
+
+      return minigame;
+    } catch (Exception e) {
+      plugin.getLogger().severe("Error creating minigame " + fullId + ": " + e.getMessage());
+      e.printStackTrace();
+      return null;
+    }
   }
 
   /**

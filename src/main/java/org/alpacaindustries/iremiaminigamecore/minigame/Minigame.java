@@ -42,10 +42,21 @@ public abstract class Minigame implements Listener {
    * @param id          Unique identifier for this minigame
    * @param displayName User-friendly name for this minigame
    * @param manager     The manager that created this minigame
+   * @throws IllegalArgumentException if any parameter is null or invalid
    */
   protected Minigame(String id, String displayName, MinigameManager manager) {
-    this.id = id;
-    this.displayName = displayName;
+    if (id == null || id.trim().isEmpty()) {
+      throw new IllegalArgumentException("Minigame ID cannot be null or empty");
+    }
+    if (displayName == null || displayName.trim().isEmpty()) {
+      throw new IllegalArgumentException("Display name cannot be null or empty");
+    }
+    if (manager == null) {
+      throw new IllegalArgumentException("MinigameManager cannot be null");
+    }
+
+    this.id = id.trim();
+    this.displayName = displayName.trim();
     this.manager = manager;
     this.minPlayers = MinigameConfig.getDefaultMinPlayers();
     this.maxPlayers = MinigameConfig.getDefaultMaxPlayers();
@@ -85,11 +96,20 @@ public abstract class Minigame implements Listener {
     }
 
     setState(MinigameState.ENDED);
-    onEnd();
+
+    try {
+      onEnd();
+    } catch (Exception e) {
+      manager.getPlugin().getLogger().warning("Error during minigame end: " + e.getMessage());
+    }
 
     // Notify end listeners FIRST (before clearing them!)
     for (Consumer<Minigame> listener : endListeners) {
-      listener.accept(this);
+      try {
+        listener.accept(this);
+      } catch (Exception e) {
+        manager.getPlugin().getLogger().warning("Error in end listener: " + e.getMessage());
+      }
     }
 
     // THEN unregister events and clear caches
@@ -107,6 +127,10 @@ public abstract class Minigame implements Listener {
    * @return true if player was successfully added
    */
   public boolean addPlayer(Player player) {
+    if (player == null) {
+      return false;
+    }
+
     if (players.contains(player.getUniqueId())) {
       return false;
     }
@@ -129,7 +153,11 @@ public abstract class Minigame implements Listener {
       player.teleport(spawnPoint);
     }
 
-    onPlayerJoin(player);
+    try {
+      onPlayerJoin(player);
+    } catch (Exception e) {
+      manager.getPlugin().getLogger().warning("Error in onPlayerJoin for " + player.getName() + ": " + e.getMessage());
+    }
 
     // Auto-start logic
     if (state == MinigameState.WAITING && players.size() >= minPlayers) {

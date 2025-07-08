@@ -1,4 +1,4 @@
-name: IremiaMinigameAPI
+name: IremiaMinigameCore
 version: ${VERSION}
 description: Core minigame management system and API
 author: AlpacaIndustries
