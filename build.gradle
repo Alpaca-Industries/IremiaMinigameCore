@@ -132,13 +132,6 @@ publishing {
     }
 }
 
-// Signing configuration for publishing
-signing {
-    // Only sign if we have signing keys configured
-    required { false } // Disabled for now - enable when you have signing keys
-    sign publishing.publications.maven
-}
-
 // Add a task to publish to local repository for testing
 tasks.register('publishLocal') {
     dependsOn 'publishMavenPublicationToLocalRepositoryRepository'
