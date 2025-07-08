@@ -103,39 +103,14 @@ tasks.register('printProjectName') {
     }
 }
 
-// Removed duplicate release task - using the one defined later
-
 publishing {
     publications {
         maven(MavenPublication) {
             from components.java
             artifact shadowJar
-
-            pom {
-                name = 'IremiaMinigameCore'
-                description = 'A comprehensive API and framework for creating minigames on Minecraft servers'
-                url = 'https://github.com/alpacaindustries/iremiaminigamecore'
-
-                licenses {
-                    license {
-                        name = 'GNU General Public License v3.0'
-                        url = 'https://www.gnu.org/licenses/gpl-3.0.html'
-                    }
-                }
-
-                developers {
-                    developer {
-                        id = 'greysilly7'
-                        name = 'greysilly7'
-                    }
-                }
-
-                scm {
-                    connection = 'scm:git:git://github.com/alpacaindustries/iremiaminigamecore.git'
-                    developerConnection = 'scm:git:ssh://github.com/alpacaindustries/iremiaminigamecore.git'
-                    url = 'https://github.com/alpacaindustries/iremiaminigamecore'
-                }
-            }
+            groupId = project.group
+            artifactId = project.name
+            version = project.version
         }
     }
 
