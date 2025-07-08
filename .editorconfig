@@ -1,0 +1,32 @@
+# EditorConfig for IremiaMinigamePlugin
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 100
+indent_style = space
+
+# Java files - Google Java Style
+[*.java]
+indent_size = 2
+continuation_indent_size = 4
+
+# XML files (for config/checkstyle)
+[*.xml]
+indent_size = 2
+
+# YAML files
+[*.yml]
+indent_size = 2
+
+# Gradle files
+[*.gradle]
+indent_size = 4
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
