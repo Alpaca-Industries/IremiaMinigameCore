@@ -1,0 +1,24 @@
+# A journey of 1,000 lines starts with a single char
+worldName: world
+
+# Minigame Configuration
+minigames:
+  # Default player limits
+  default-min-players: 1
+  default-max-players: 16
+
+  # Timing settings (in seconds)
+  default-countdown-seconds: 10
+  default-game-duration-seconds: 300
+
+  # Performance tuning
+  player-cache-cleanup-interval: 30
+  max-cached-players: 100
+
+  # Error messages
+  messages:
+    game-full: "This game is full!"
+    game-in-progress: "This game is already in progress!"
+    not-enough-players: "Not enough players to start!"
+    players-remaining: "Not enough players remaining! Ending game."
+    countdown-cancelled: "Countdown cancelled - not enough players!"

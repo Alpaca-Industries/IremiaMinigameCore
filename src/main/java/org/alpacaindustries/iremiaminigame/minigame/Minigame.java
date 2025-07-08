@@ -6,7 +6,6 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 
 import net.kyori.adventure.text.Component;
-import org.alpacaindustries.iremiaminigame.core.config.MinigameConfig;
 
 import java.util.ArrayList;
 import java.util.HashMap;

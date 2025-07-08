@@ -1,0 +1,37 @@
+name: IremiaMinigamePlugin
+version: 1.0.0
+main: org.alpacaindustries.iremiaminigame.IremiaMinigamePlugin
+api-version: '1.21'
+authors: [Levi, greysilly7]
+description: A plugin for creating and managing minigames
+website: https://alpacaindustries.org
+depend: []
+softdepend: []
+commands:
+  minigame:
+    description: Manage minigames
+    usage: /minigame help
+    aliases: [mg]
+    permission: iremiaminigame.command.minigame
+permissions:
+  iremiaminigame.command.minigame:
+    description: Access to minigame commands
+    default: true
+  iremiaminigame.command.create:
+    description: Create minigames
+    default: op
+  iremiaminigame.command.start:
+    description: Start minigames
+    default: op
+  iremiaminigame.command.end:
+    description: End minigames
+    default: op
+  iremiaminigame.command.setmin:
+    description: Set minimum players for a minigame
+    default: op
+  iremiaminigame.command.setmax:
+    description: Set maximum players for a minigame
+    default: op
+  iremiaminigame.command.setspawn:
+    description: Set spawn point for a minigame
+    default: op

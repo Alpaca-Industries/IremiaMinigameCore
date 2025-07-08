@@ -1,6 +1,6 @@
 package org.alpacaindustries.iremiaminigame.util;
 
-import org.alpacaindustries.iremiaminigame.IremiaMinigamePlugin;
+import org.alpacaindustries.iremiaminigame.IremiaMinigameCorePlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -11,7 +11,7 @@ import java.util.function.Consumer;
  * Provides fluent API for timer configuration and automatic task cleanup
  */
 public class CountdownTimer {
-  private final IremiaMinigamePlugin plugin;
+  private final IremiaMinigameCorePlugin plugin;
   private final int startSeconds;
   private int secondsLeft;
   private BukkitTask task;
@@ -19,7 +19,7 @@ public class CountdownTimer {
   private Consumer<Integer> onCount;
   private Runnable onFinish;
 
-  public CountdownTimer(IremiaMinigamePlugin plugin, int seconds) {
+  public CountdownTimer(IremiaMinigameCorePlugin plugin, int seconds) {
     this.plugin = plugin;
     this.startSeconds = seconds;
     this.secondsLeft = seconds;

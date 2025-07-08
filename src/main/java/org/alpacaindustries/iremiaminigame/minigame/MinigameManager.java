@@ -1,6 +1,6 @@
 package org.alpacaindustries.iremiaminigame.minigame;
 
-import org.alpacaindustries.iremiaminigame.IremiaMinigamePlugin;
+import org.alpacaindustries.iremiaminigame.IremiaMinigameCorePlugin;
 import org.alpacaindustries.iremiaminigame.api.factory.MinigameFactory;
 import org.bukkit.entity.Player;
 
@@ -17,12 +17,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MinigameManager {
 
-  private final IremiaMinigamePlugin plugin;
+  private final IremiaMinigameCorePlugin plugin;
   private final Map<String, MinigameFactory> gameFactories = new ConcurrentHashMap<>();
   private final Map<String, Minigame> activeGames = new ConcurrentHashMap<>();
   private final Map<UUID, String> playerGameMap = new ConcurrentHashMap<>(); // Track which game each player is in
 
-  public MinigameManager(IremiaMinigamePlugin plugin) {
+  public MinigameManager(IremiaMinigameCorePlugin plugin) {
     this.plugin = plugin;
   }
 
@@ -176,7 +176,7 @@ public class MinigameManager {
    *
    * @return The plugin instance
    */
-  public IremiaMinigamePlugin getPlugin() {
+  public IremiaMinigameCorePlugin getPlugin() {
     return plugin;
   }
 }

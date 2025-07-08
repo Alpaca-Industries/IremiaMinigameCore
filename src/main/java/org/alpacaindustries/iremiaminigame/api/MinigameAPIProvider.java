@@ -1,6 +1,6 @@
 package org.alpacaindustries.iremiaminigame.api;
 
-import org.alpacaindustries.iremiaminigame.IremiaMinigamePlugin;
+import org.alpacaindustries.iremiaminigame.IremiaMinigameCorePlugin;
 import org.alpacaindustries.iremiaminigame.api.impl.IremiaMinigameAPIImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
@@ -18,7 +18,7 @@ public class MinigameAPIProvider {
   /**
    * Initialize the API (called by main plugin on enable)
    */
-  public static void initialize(IremiaMinigamePlugin plugin) {
+  public static void initialize(IremiaMinigameCorePlugin plugin) {
     if (apiInstance != null) {
       throw new IllegalStateException("API is already initialized!");
     }

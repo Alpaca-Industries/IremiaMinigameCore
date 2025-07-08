@@ -1,7 +1,7 @@
 package org.alpacaindustries.iremiaminigame.system;
 
 import org.alpacaindustries.iremiaminigame.util.CountdownTimer;
-import org.alpacaindustries.iremiaminigame.IremiaMinigamePlugin;
+import org.alpacaindustries.iremiaminigame.IremiaMinigameCorePlugin;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,10 +13,10 @@ import java.util.function.Consumer;
  */
 public class GameTimerManager {
 
-  private final IremiaMinigamePlugin plugin;
+  private final IremiaMinigameCorePlugin plugin;
   private final Map<String, CountdownTimer> timers = new HashMap<>();
 
-  public GameTimerManager(IremiaMinigamePlugin plugin) {
+  public GameTimerManager(IremiaMinigameCorePlugin plugin) {
     this.plugin = plugin;
   }
 
