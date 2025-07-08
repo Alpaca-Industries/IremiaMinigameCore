@@ -68,7 +68,7 @@ public abstract class Minigame implements Listener {
     }
 
     if (players.size() < minPlayers) {
-      broadcastMessage(Component.text(MinigameConfig.MSG_NOT_ENOUGH_PLAYERS));
+      broadcastMessage(Component.text(MinigameConfig.getMsgNotEnoughPlayers()));
       return;
     }
 
@@ -112,12 +112,12 @@ public abstract class Minigame implements Listener {
     }
 
     if (players.size() >= maxPlayers) {
-      player.sendMessage(MinigameConfig.MSG_GAME_FULL);
+      player.sendMessage(MinigameConfig.getMsgGameFull());
       return false;
     }
 
     if (state == MinigameState.RUNNING && !allowJoinDuringGame) {
-      player.sendMessage(MinigameConfig.MSG_GAME_IN_PROGRESS);
+      player.sendMessage(MinigameConfig.getMsgGameInProgress());
       return false;
     }
 
@@ -155,14 +155,14 @@ public abstract class Minigame implements Listener {
 
     // End game if not enough players
     if (state == MinigameState.RUNNING && players.size() < minPlayers) {
-      broadcastMessage(Component.text(MinigameConfig.MSG_PLAYERS_REMAINING));
+      broadcastMessage(Component.text(MinigameConfig.getMsgPlayersRemaining()));
       end();
     }
 
     // Cancel countdown if not enough players
     if (state == MinigameState.COUNTDOWN && players.size() < minPlayers) {
       setState(MinigameState.WAITING);
-      broadcastMessage(Component.text(MinigameConfig.MSG_COUNTDOWN_CANCELLED));
+      broadcastMessage(Component.text(MinigameConfig.getMsgCountdownCancelled()));
     }
   }
 

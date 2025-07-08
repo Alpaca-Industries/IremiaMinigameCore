@@ -1,15 +1,12 @@
 package org.alpacaindustries.iremiaminigamecore.api.impl;
 
 import org.alpacaindustries.iremiaminigamecore.minigame.Minigame;
-import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameState;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Listener;
 
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
 
 /**
  * Wrapper that adds event notifications to externally created minigames
