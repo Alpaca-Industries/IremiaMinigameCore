@@ -1,37 +1,76 @@
-name: IremiaMinigamePlugin
-version: 1.0.0
-main: org.alpacaindustries.iremiaminigame.IremiaMinigamePlugin
-api-version: '1.21'
-authors: [Levi, greysilly7]
-description: A plugin for creating and managing minigames
+name: IremiaMinigameAPI
+version: ${VERSION}
+description: Core minigame management system and API
+author: AlpacaIndustries
 website: https://alpacaindustries.org
-depend: []
-softdepend: []
+main: org.alpacaindustries.iremiaminigamecore.IremiaMinigameCorePlugin
+
+api-version: 1.21
+load: STARTUP
+
 commands:
   minigame:
-    description: Manage minigames
-    usage: /minigame help
-    aliases: [mg]
-    permission: iremiaminigame.command.minigame
+    description: Main minigame command
+    usage: /<command> [subcommand]
+    permission: iremiaminigame.use
+    aliases: [mg, game]
+
 permissions:
-  iremiaminigame.command.minigame:
-    description: Access to minigame commands
+  iremiaminigame.*:
+    description: Gives access to all minigame commands
+    children:
+      iremiaminigame.use: true
+      iremiaminigame.command.*: true
+
+  iremiaminigame.use:
+    description: Basic minigame usage
     default: true
+
+  iremiaminigame.command.*:
+    description: All minigame commands
+    children:
+      iremiaminigame.command.join: true
+      iremiaminigame.command.leave: true
+      iremiaminigame.command.list: true
+      iremiaminigame.command.create: true
+      iremiaminigame.command.start: true
+      iremiaminigame.command.end: true
+      iremiaminigame.command.setmin: true
+      iremiaminigame.command.setmax: true
+      iremiaminigame.command.setspawn: true
+
+  iremiaminigame.command.join:
+    description: Join a minigame
+    default: true
+
+  iremiaminigame.command.leave:
+    description: Leave a minigame
+    default: true
+
+  iremiaminigame.command.list:
+    description: List active minigames
+    default: true
+
   iremiaminigame.command.create:
-    description: Create minigames
+    description: Create a new minigame
     default: op
+
   iremiaminigame.command.start:
-    description: Start minigames
+    description: Start a minigame
     default: op
+
   iremiaminigame.command.end:
-    description: End minigames
+    description: End a minigame
     default: op
+
   iremiaminigame.command.setmin:
     description: Set minimum players for a minigame
     default: op
+
   iremiaminigame.command.setmax:
     description: Set maximum players for a minigame
     default: op
+
   iremiaminigame.command.setspawn:
     description: Set spawn point for a minigame
     default: op

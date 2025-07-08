@@ -255,7 +255,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🏆 Examples
 
 Check out these example implementations:
-- **IremiaMinigamePlugin** - Collection of built-in minigames
+- **IremiaMinigameCorePlugin** - Collection of built-in minigames
 - **Example plugins** in the `examples/` directory
 
 ---

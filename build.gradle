@@ -3,7 +3,8 @@ import java.text.SimpleDateFormat
 plugins {
     id 'com.gradleup.shadow' version '8.3.6'
     id 'java'
-    id("xyz.jpenilla.run-paper") version "2.3.1"
+    id 'maven-publish'
+    id 'signing'
 }
 
 group = "org.alpacaindustries.iremiaminigamecore"
@@ -14,13 +15,23 @@ static def getTime() {
     return sdf.format(new Date()).toString()
 }
 
-// Set version to version property if supplied
+// Set version to version property if supplied (for GitHub releases or manual builds)
 String shortVersion = null
 if (hasProperty('ver')) {
     if (ver.charAt(0) == "v") {
-        shortVersion = ver.substring(1).toUpperCase()
+        shortVersion = ver.substring(1)
     } else {
-        shortVersion = ver.toUpperCase()
+        shortVersion = ver
+    }
+} else if (System.getenv("GITHUB_REF_TYPE") == "tag") {
+    // Extract version from GitHub release tag
+    String githubRef = System.getenv("GITHUB_REF_NAME")
+    if (githubRef != null) {
+        if (githubRef.startsWith("v")) {
+            shortVersion = githubRef.substring(1)
+        } else {
+            shortVersion = githubRef
+        }
     }
 }
 
@@ -92,62 +103,117 @@ tasks.register('printProjectName') {
     }
 }
 
-tasks.register('release') {
-    dependsOn build
+// Removed duplicate release task - using the one defined later
 
-    doLast {
-        if (!version.endsWith("-SNAPSHOT")) {
-            // Rename final JAR to trim off version information
-            shadowJar.archiveFile.get().getAsFile()
-                    .renameTo(layout.buildDirectory.get().toString() + File.separator + 'libs' + File.separator
-                            + rootProject.name + '.jar')
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            artifact shadowJar
+
+            pom {
+                name = 'IremiaMinigameCore'
+                description = 'A comprehensive API and framework for creating minigames on Minecraft servers'
+                url = 'https://github.com/alpacaindustries/iremiaminigamecore'
+
+                licenses {
+                    license {
+                        name = 'GNU General Public License v3.0'
+                        url = 'https://www.gnu.org/licenses/gpl-3.0.html'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'greysilly7'
+                        name = 'greysilly7'
+                    }
+                }
+
+                scm {
+                    connection = 'scm:git:git://github.com/alpacaindustries/iremiaminigamecore.git'
+                    developerConnection = 'scm:git:ssh://github.com/alpacaindustries/iremiaminigamecore.git'
+                    url = 'https://github.com/alpacaindustries/iremiaminigamecore'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/alpacaindustries/iremiaminigamecore")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
+                password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
+            }
+        }
+
+        // For local publishing during development
+        maven {
+            name = "LocalRepository"
+            url = uri("${buildDir}/repo")
         }
     }
 }
 
-tasks.register('fullBuildFlow') {
-    dependsOn 'build'
-    mustRunAfter 'clean'
+// Signing configuration for publishing
+signing {
+    // Only sign if we have signing keys configured
+    required { false } // Disabled for now - enable when you have signing keys
+    sign publishing.publications.maven
+}
+
+// Add a task to publish to local repository for testing
+tasks.register('publishLocal') {
+    dependsOn 'publishMavenPublicationToLocalRepositoryRepository'
 
     doLast {
-        def targetDir = file("E:\\DebugServer\\plugins")
+        println "Published to local repository: ${buildDir}/repo"
+        println "You can now test this in other projects by adding:"
+        println "  repositories { flatDir { dirs '${buildDir}/repo' } }"
+    }
+}
 
-        // Delete all .jar files in the target directory
-        fileTree(dir: targetDir, include: '*.jar').files.each { jar ->
-            println "Deleting old jar: $jar"
-            jar.delete()
-        }
+// Add a task to publish to GitHub Packages
+tasks.register('publishToGitHub') {
+    dependsOn 'publishMavenPublicationToGitHubPackagesRepository'
 
-        // Get the jar produced by the 'jar' task
-        def jarTask = tasks.named('jar').get()
-        def jarFile = jarTask.archiveFile.get().asFile
+    doLast {
+        println "Published to GitHub Packages"
+        println "Version: ${version}"
+        println "Repository: https://maven.pkg.github.com/alpacaindustries/iremiaminigamecore"
+    }
+}
 
-        if (!jarFile.exists()) {
-            throw new GradleException("Jar file not found: $jarFile")
-        }
-        println "Found jar: $jarFile"
+// Create a distribution task for releases
+tasks.register('dist') {
+    dependsOn shadowJar
 
-        targetDir.mkdirs()
+    doLast {
+        def distDir = file("${buildDir}/dist")
+        distDir.mkdirs()
 
+        // Copy the shadow jar to dist directory
         copy {
-            from jarFile
-            into targetDir
+            from shadowJar.archiveFile.get().asFile
+            into distDir
+            rename { "${rootProject.name}.jar" }
         }
 
-        def copiedJar = new File(targetDir, jarFile.name)
-        println "Jar copied to: $copiedJar"
-        if (!copiedJar.exists()) {
-            throw new GradleException("Jar was NOT copied correctly!")
-        }
-
-        exec {
-            workingDir 'E:\\DebugServer'
-            commandLine 'cmd', 'start', 'startnogui.bat'
-        }
+        println "Distribution created in: ${distDir}"
     }
 }
 
+tasks.register('release') {
+    dependsOn build, dist
 
-tasks.register('buildAndRun') {
-    dependsOn 'clean', 'fullBuildFlow'
+    doLast {
+        println "========================================"
+        println "  Release Build Complete!"
+        println "  Version: ${version}"
+        println "  Artifact: ${shadowJar.archiveFile.get().asFile.name}"
+        println "  Distribution: ${buildDir}/dist/${rootProject.name}.jar"
+        println "========================================"
+    }
 }
