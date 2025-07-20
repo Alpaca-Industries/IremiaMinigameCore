@@ -7,6 +7,10 @@ import org.alpacaindustries.iremiaminigamecore.minigame.MinigameConfig;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 /**
  * IremiaMinigameCore - Core minigame management system
@@ -17,24 +21,23 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public class IremiaMinigameCorePlugin extends JavaPlugin implements Listener {
 
-  private MinigameManager minigameManager;
-  private IremiaMinigameAPI api;
+  private @Nullable MinigameManager minigameManager;
+  private @Nullable IremiaMinigameAPI api;
 
   @Override
   public void onEnable() {
     getLogger().info("Starting IremiaMinigameCore...");
-
     try {
       // Initialize configuration
       MinigameConfig.initialize(this);
       getLogger().info("Configuration initialized");
 
       // Initialize the minigame manager
-      minigameManager = new MinigameManager(this);
+      this.minigameManager = new MinigameManager(this);
       getLogger().info("MinigameManager initialized");
 
       // Initialize the API implementation
-      api = new IremiaMinigameAPIImpl(minigameManager, getLogger());
+      this.api = new IremiaMinigameAPIImpl(minigameManager, getLogger());
       getLogger().info("API implementation initialized");
 
       // Register commands
@@ -60,9 +63,7 @@ public class IremiaMinigameCorePlugin extends JavaPlugin implements Listener {
   @Override
   public void onDisable() {
     getLogger().info("Shutting down IremiaMinigameCore...");
-
     try {
-      // Clean up any active games
       if (minigameManager != null) {
         int activeGames = minigameManager.getActiveGames().size();
         if (activeGames > 0) {
@@ -76,14 +77,10 @@ public class IremiaMinigameCorePlugin extends JavaPlugin implements Listener {
             }
           });
         }
-
-        // Clean up plugin registrations
         if (api instanceof IremiaMinigameAPIImpl) {
-          // This would clean up any registered plugin data
           getLogger().info("Cleaned up API registrations");
         }
       }
-
       getLogger().info("IremiaMinigameCore has been disabled!");
     } catch (Exception e) {
       getLogger().severe("Error during plugin shutdown: " + e.getMessage());
@@ -92,40 +89,40 @@ public class IremiaMinigameCorePlugin extends JavaPlugin implements Listener {
   }
 
   /**
-   * Get the minigame manager instance
-   * This is the main entry point for managing minigames
+   * Get the minigame manager instance.
+   * This is the main entry point for managing minigames.
    *
-   * @return The minigame manager
+   * @return The minigame manager, or null if not initialized
    */
-  public MinigameManager getMinigameManager() {
+  public @Nullable MinigameManager getMinigameManager() {
     return minigameManager;
   }
 
   /**
-   * Get the API instance
-   * This provides the full API interface for external plugins
+   * Get the API instance.
+   * This provides the full API interface for external plugins.
    *
-   * @return The API instance
+   * @return The API instance, or null if not initialized
    */
-  public IremiaMinigameAPI getAPI() {
+  public @Nullable IremiaMinigameAPI getAPI() {
     return api;
   }
 
   /**
-   * Get the API instance (static access for other plugins)
-   * External plugins should use this method to access the API
+   * Get the API instance (static access for other plugins).
+   * External plugins should use this method to access the API.
    *
    * @return The API instance or null if not available
    */
-  public static IremiaMinigameAPI getMinigameAPI() {
+  public static @Nullable IremiaMinigameAPI getMinigameAPI() {
     IremiaMinigameCorePlugin plugin = (IremiaMinigameCorePlugin) org.bukkit.Bukkit.getPluginManager()
         .getPlugin("IremiaMinigameCore");
     return plugin != null ? plugin.getAPI() : null;
   }
 
   /**
-   * Check if the API is available
-   * Useful for soft dependencies
+   * Check if the API is available.
+   * Useful for soft dependencies.
    *
    * @return true if the API is loaded and available
    */
