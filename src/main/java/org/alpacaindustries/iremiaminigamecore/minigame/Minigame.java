@@ -113,7 +113,7 @@ public abstract class Minigame implements Listener {
     }
 
     // THEN unregister events and clear caches
-    HandlerList.unregisterAll(this);
+    //HandlerList.unregisterAll(this);
 
     // Clear caches and collections to prevent memory leaks
     playerCache.clear();
