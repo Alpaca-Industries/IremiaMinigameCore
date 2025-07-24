@@ -10,63 +10,68 @@ import org.bukkit.event.Listener;
 import net.kyori.adventure.text.Component;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.Objects;
 
 /**
  * Base abstract class for all minigames.
  * Provides the core functionality and lifecycle management for minigames.
+ * <p>
+ * This class is thread-safe for all public methods unless otherwise noted.
  */
 public abstract class Minigame implements Listener {
 
-  private final String id;
-  private final String displayName;
-  private final MinigameManager manager;
-  private final Set<UUID> players = new HashSet<>();
-  private final List<Consumer<Minigame>> endListeners = new ArrayList<>();
-  // Add player cache for performance
-  private final Map<UUID, Player> playerCache = new HashMap<>();
+  private final @NotNull String id;
+  private final @NotNull String displayName;
+  private final @NotNull MinigameManager manager;
+  private final Set<UUID> players = Collections.synchronizedSet(new HashSet<>());
+  private final List<Consumer<Minigame>> endListeners = Collections.synchronizedList(new ArrayList<>());
+  private final Map<UUID, Player> playerCache = Collections.synchronizedMap(new HashMap<>());
 
-  private Location spawnPoint;
-  private MinigameState state = MinigameState.WAITING;
-  private int minPlayers;
-  private int maxPlayers;
-  private boolean allowJoinDuringGame = false;
+  private volatile Optional<Location> spawnPoint = Optional.empty();
+  private volatile MinigameState state = MinigameState.WAITING;
+  private volatile int minPlayers;
+  private volatile int maxPlayers;
+  private volatile boolean allowJoinDuringGame = false;
+  private boolean shouldLoop = false;
+  private long loopDelayTicks = 60L; // Default: 3 seconds (20 ticks = 1 second)
 
   /**
-   * Create a new minigame
+   * Create a new minigame.
    *
    * @param id          Unique identifier for this minigame
    * @param displayName User-friendly name for this minigame
    * @param manager     The manager that created this minigame
    * @throws IllegalArgumentException if any parameter is null or invalid
    */
-  protected Minigame(String id, String displayName, MinigameManager manager) {
-    if (id == null || id.trim().isEmpty()) {
-      throw new IllegalArgumentException("Minigame ID cannot be null or empty");
+  protected Minigame(@NotNull String id, @NotNull String displayName, @NotNull MinigameManager manager) {
+    this.id = Objects.requireNonNull(id, "Minigame ID cannot be null").trim();
+    if (this.id.isEmpty()) {
+      throw new IllegalArgumentException("Minigame ID cannot be empty");
     }
-    if (displayName == null || displayName.trim().isEmpty()) {
-      throw new IllegalArgumentException("Display name cannot be null or empty");
+    this.displayName = Objects.requireNonNull(displayName, "Display name cannot be null").trim();
+    if (this.displayName.isEmpty()) {
+      throw new IllegalArgumentException("Display name cannot be empty");
     }
-    if (manager == null) {
-      throw new IllegalArgumentException("MinigameManager cannot be null");
-    }
-
-    this.id = id.trim();
-    this.displayName = displayName.trim();
-    this.manager = manager;
+    this.manager = Objects.requireNonNull(manager, "MinigameManager cannot be null");
     this.minPlayers = MinigameConfig.getDefaultMinPlayers();
     this.maxPlayers = MinigameConfig.getDefaultMaxPlayers();
   }
 
   /**
-   * Initialize the minigame
+   * Initialize the minigame. Registers event listeners and sets initial state.
    */
   public void initialize() {
     setState(MinigameState.WAITING);
@@ -74,40 +79,34 @@ public abstract class Minigame implements Listener {
   }
 
   /**
-   * Start the minigame
+   * Start the minigame. Only allowed from WAITING or COUNTDOWN state.
    */
-  public void start() {
+  public synchronized void start() {
     if (state != MinigameState.WAITING && state != MinigameState.COUNTDOWN) {
       return;
     }
-
     if (players.size() < minPlayers) {
       broadcastMessage(Component.text(MinigameConfig.getMsgNotEnoughPlayers()));
       return;
     }
-
     setState(MinigameState.RUNNING);
     onStart();
   }
 
   /**
-   * End the minigame and clean up resources
+   * End the minigame and clean up resources.
    */
-  public void end() {
+  public synchronized void end() {
     if (state == MinigameState.ENDED) {
       return;
     }
-
     setState(MinigameState.ENDED);
-
     try {
       onEnd();
     } catch (Exception e) {
       manager.getPlugin().getLogger().warning("Error during minigame end: " + e.getMessage());
     }
-
-    // Notify end listeners FIRST (before clearing them!)
-    for (Consumer<Minigame> listener : endListeners) {
+    for (Consumer<Minigame> listener : new ArrayList<>(endListeners)) {
       try {
         listener.accept(this);
       } catch (Exception e) {
@@ -115,112 +114,111 @@ public abstract class Minigame implements Listener {
       }
     }
 
-    // THEN unregister events and clear caches
     //HandlerList.unregisterAll(this);
+
 
     // Clear caches and collections to prevent memory leaks
     playerCache.clear();
     endListeners.clear();
+    players.clear();
+    // Loop logic: schedule restart if enabled
+    if (shouldLoop) {
+      manager.getPlugin().getServer().getScheduler().runTaskLater(
+          manager.getPlugin(),
+          this::restartMinigame,
+          loopDelayTicks
+      );
+    }
   }
 
   /**
-   * Add a player to the minigame
+   * Restart the minigame for looping.
+   * This resets state and calls initialize/start.
+   */
+  private void restartMinigame() {
+    initialize();
+    start();
+  }
+
+  /**
+   * Add a player to the minigame.
    *
    * @param player Player to add
    * @return true if player was successfully added
    */
-  public boolean addPlayer(Player player) {
-    if (player == null) {
-      return false;
+  public boolean addPlayer(@NotNull Player player) {
+    Objects.requireNonNull(player, "Player cannot be null");
+    synchronized (players) {
+      if (players.contains(player.getUniqueId())) {
+        return false;
+      }
+      if (players.size() >= maxPlayers) {
+        player.sendMessage(MinigameConfig.getMsgGameFull());
+        return false;
+      }
+      if (state == MinigameState.RUNNING && !allowJoinDuringGame) {
+        player.sendMessage(MinigameConfig.getMsgGameInProgress());
+        return false;
+      }
+      players.add(player.getUniqueId());
+      playerCache.put(player.getUniqueId(), player);
+      spawnPoint.ifPresent(player::teleport);
+      try {
+        onPlayerJoin(player);
+      } catch (Exception e) {
+        manager.getPlugin().getLogger().warning("Error in onPlayerJoin for " + player.getName() + ": " + e.getMessage());
+      }
+      if (state == MinigameState.WAITING && players.size() >= minPlayers) {
+        startCountdown();
+      }
+      return true;
     }
-
-    if (players.contains(player.getUniqueId())) {
-      return false;
-    }
-
-    if (players.size() >= maxPlayers) {
-      player.sendMessage(MinigameConfig.getMsgGameFull());
-      return false;
-    }
-
-    if (state == MinigameState.RUNNING && !allowJoinDuringGame) {
-      player.sendMessage(MinigameConfig.getMsgGameInProgress());
-      return false;
-    }
-
-    // Add player and handle setup
-    players.add(player.getUniqueId());
-    playerCache.put(player.getUniqueId(), player);
-
-    if (spawnPoint != null) {
-      player.teleport(spawnPoint);
-    }
-
-    try {
-      onPlayerJoin(player);
-    } catch (Exception e) {
-      manager.getPlugin().getLogger().warning("Error in onPlayerJoin for " + player.getName() + ": " + e.getMessage());
-    }
-
-    // Auto-start logic
-    if (state == MinigameState.WAITING && players.size() >= minPlayers) {
-      startCountdown();
-    }
-
-    return true;
   }
 
   /**
-   * Remove a player from the minigame
+   * Remove a player from the minigame.
    *
    * @param player Player to remove
    */
-  public void removePlayer(Player player) {
-    if (!players.contains(player.getUniqueId())) return;
-
-    players.remove(player.getUniqueId());
-    onPlayerCleanup(player);
-    onPlayerLeave(player);
-
-    // End game if not enough players
-    if (state == MinigameState.RUNNING && players.size() < minPlayers) {
-      broadcastMessage(Component.text(MinigameConfig.getMsgPlayersRemaining()));
-      end();
-    }
-
-    // Cancel countdown if not enough players
-    if (state == MinigameState.COUNTDOWN && players.size() < minPlayers) {
-      setState(MinigameState.WAITING);
-      broadcastMessage(Component.text(MinigameConfig.getMsgCountdownCancelled()));
-    }
-  }
-
-  /**
-   * Send a message to all players in the minigame
-   *
-   * @param message Message to send
-   */
-  public void broadcastMessage(Component message) {
-    for (UUID uuid : players) {
-      Player player = getPlayerById(uuid);
-      if (player != null) {
-        player.sendMessage(message);
+  public void removePlayer(@NotNull Player player) {
+    Objects.requireNonNull(player, "Player cannot be null");
+    synchronized (players) {
+      if (!players.contains(player.getUniqueId())) {
+        return;
+      }
+      players.remove(player.getUniqueId());
+      onPlayerCleanup(player);
+      onPlayerLeave(player);
+      if (state == MinigameState.RUNNING && players.size() < minPlayers) {
+        broadcastMessage(Component.text(MinigameConfig.getMsgPlayersRemaining()));
+        end();
+      }
+      if (state == MinigameState.COUNTDOWN && players.size() < minPlayers) {
+        setState(MinigameState.WAITING);
+        broadcastMessage(Component.text(MinigameConfig.getMsgCountdownCancelled()));
       }
     }
   }
 
   /**
-   * Broadcast message to all players with batch optimization
+   * Send a message to all players in the minigame.
    *
    * @param message Message to send
    */
-  public void broadcastMessageBatch(Component message) {
-    List<Player> onlinePlayers = getOnlinePlayers();
-    onlinePlayers.forEach(player -> player.sendMessage(message));
+  public void broadcastMessage(@NotNull Component message) {
+    Objects.requireNonNull(message, "Message cannot be null");
+    synchronized (players) {
+      for (UUID uuid : players) {
+        Player player = getPlayerById(uuid);
+        if (player != null) {
+          player.sendMessage(message);
+        }
+      }
+    }
   }
 
   /**
-   * Start the countdown to begin the game
+   * Start the countdown to begin the game.
    */
   public void startCountdown() {
     setState(MinigameState.COUNTDOWN);
@@ -228,18 +226,54 @@ public abstract class Minigame implements Listener {
   }
 
   /**
-   * Add a listener that will be called when this minigame ends
+   * Add a listener that will be called when this minigame ends.
    *
    * @param listener Consumer that takes the ended minigame
    */
-  public void addEndListener(Consumer<Minigame> listener) {
+  public void addEndListener(@NotNull Consumer<Minigame> listener) {
+    Objects.requireNonNull(listener, "Listener cannot be null");
     endListeners.add(listener);
   }
 
   /**
-   * Get a player by UUID with caching for performance
+   * Set whether this minigame should automatically loop (restart) after ending.
+   *
+   * @param shouldLoop true to enable looping
    */
-  protected Player getPlayerById(UUID uuid) {
+  public void setShouldLoop(boolean shouldLoop) {
+    this.shouldLoop = shouldLoop;
+  }
+
+  /**
+   * Set the delay (in ticks) before restarting the minigame if looping is enabled.
+   *
+   * @param delayTicks Delay in server ticks (20 ticks = 1 second)
+   */
+  public void setLoopDelayTicks(long delayTicks) {
+    this.loopDelayTicks = delayTicks;
+  }
+
+  /**
+   * Get whether this minigame is set to loop.
+   */
+  public boolean isShouldLoop() {
+    return shouldLoop;
+  }
+
+  /**
+   * Get the loop delay in ticks.
+   */
+  public long getLoopDelayTicks() {
+    return loopDelayTicks;
+  }
+
+  /**
+   * Get a player by UUID with caching for performance.
+   *
+   * @param uuid Player UUID
+   * @return Player instance or null if not online
+   */
+  protected @Nullable Player getPlayerById(@NotNull UUID uuid) {
     Player cached = playerCache.get(uuid);
     if (cached != null && cached.isOnline()) {
       return cached;
@@ -255,32 +289,18 @@ public abstract class Minigame implements Listener {
   }
 
   /**
-   * Get all online players in this minigame
-   */
-  protected List<Player> getOnlinePlayers() {
-    List<Player> onlinePlayers = new ArrayList<>();
-    for (UUID uuid : players) {
-      Player player = getPlayerById(uuid);
-      if (player != null) {
-        onlinePlayers.add(player);
-      }
-    }
-    return onlinePlayers;
-  }
-
-  /**
-   * Validate if a player is in a valid state for this minigame
+   * Validate if a player is in a valid state for this minigame.
    *
    * @param player Player to validate
    * @return true if player is valid and can participate
    */
-  protected boolean isPlayerValid(Player player) {
+  protected boolean isPlayerValid(@Nullable Player player) {
     return player != null && player.isOnline() && players.contains(player.getUniqueId());
   }
 
   /**
-   * Clean up expired entries from player cache
-   * Should be called periodically to prevent memory leaks
+   * Clean up expired entries from player cache.
+   * Should be called periodically to prevent memory leaks.
    */
   public void cleanupPlayerCache() {
     playerCache.entrySet().removeIf(entry -> {
@@ -316,7 +336,7 @@ public abstract class Minigame implements Listener {
     );
   }
 
-  protected List<Player> getValidOnlinePlayers() {
+  public List<Player> getValidOnlinePlayers() {
     List<Player> validPlayers = new ArrayList<>();
 
     for (UUID uuid : new HashSet<>(this.players)) {
@@ -355,20 +375,18 @@ public abstract class Minigame implements Listener {
   // Abstract methods that minigames must implement
 
   /**
-   * Called when the minigame starts
-   * Override this method and call super.onStart() to maintain base functionality
+   * Called when the minigame starts.
+   * Override this method and call super.onStart() to maintain base functionality.
    */
   protected void onStart() {
-    // Default implementation - can be overridden
     getManager().getPlugin().getLogger().info("Minigame " + getId() + " started with " + getPlayerCount() + " players");
   }
 
   /**
-   * Called when the minigame ends
-   * Override this method and call super.onEnd() to maintain base functionality
+   * Called when the minigame ends.
+   * Override this method and call super.onEnd() to maintain base functionality.
    */
   protected void onEnd() {
-    // Default implementation - cleanup player cache
     cleanupPlayerCache();
     refreshAllOnlinePlayers();
 
@@ -376,42 +394,37 @@ public abstract class Minigame implements Listener {
   }
 
   /**
-   * Called when a player joins the minigame
-   * Override this method and call super.onPlayerJoin(player) to maintain base
-   * functionality
+   * Called when a player joins the minigame.
+   * Override this method and call super.onPlayerJoin(player) to maintain base functionality.
    *
    * @param player Player who joined
    */
-  protected void onPlayerJoin(Player player) {
-    // Default implementation - update player cache and validate
+  protected void onPlayerJoin(@NotNull Player player) {
     playerCache.put(player.getUniqueId(), player);
     getManager().getPlugin().getLogger().info("Player " + player.getName() + " joined minigame " + getId());
   }
 
   /**
-   * Called when a player leaves the minigame
-   * Override this method and call super.onPlayerLeave(player) to maintain base
-   * functionality
+   * Called when a player leaves the minigame.
+   * Override this method and call super.onPlayerLeave(player) to maintain base functionality.
    *
    * @param player Player who left
    */
-  protected void onPlayerLeave(Player player) {
-    // Default implementation - cleanup player cache
+  protected void onPlayerLeave(@NotNull Player player) {
     onPlayerCleanup(player);
     getManager().getPlugin().getLogger().info("Player " + player.getName() + " left minigame " + getId());
   }
+
 
   protected void onPlayerCleanup(Player player) {
     playerCache.remove(player.getUniqueId());
   }
 
   /**
-   * Called when the countdown starts
-   * Override this method and call super.onCountdownStart() to maintain base
-   * functionality
+   * Called when the countdown starts.
+   * Override this method and call super.onCountdownStart() to maintain base functionality.
    */
   protected void onCountdownStart() {
-    // Default implementation - can be overridden
     getManager().getPlugin().getLogger().info("Countdown started for minigame " + getId());
   }
 
@@ -434,44 +447,45 @@ public abstract class Minigame implements Listener {
 
   // Getters and Setters
 
-  public String getId() {
+  public @NotNull String getId() {
     return id;
   }
 
-  public String getDisplayName() {
+  public @NotNull String getDisplayName() {
     return displayName;
   }
 
-  public MinigameManager getManager() {
+  public @NotNull MinigameManager getManager() {
     return manager;
   }
 
-  public Set<UUID> getPlayers() {
-    return new HashSet<>(players);
+  public @NotNull Set<UUID> getPlayers() {
+    return Collections.unmodifiableSet(players);
   }
 
   public int getPlayerCount() {
     return players.size();
   }
 
-  public MinigameState getState() {
+  public @NotNull MinigameState getState() {
     return state;
   }
 
-  public void setState(MinigameState state) {
+
+  public void setState(@NotNull MinigameState state) {
     MinigameState oldState = this.state;
-    this.state = state;
+    this.state = Objects.requireNonNull(state, "State cannot be null");
 
     // Call state change hook
     this.onStateChange(oldState, state);
   }
 
-  public Location getSpawnPoint() {
+  public @NotNull Optional<Location> getSpawnPoint() {
     return spawnPoint;
   }
 
-  public void setSpawnPoint(Location spawnPoint) {
-    this.spawnPoint = spawnPoint;
+  public void setSpawnPoint(@Nullable Location spawnPoint) {
+    this.spawnPoint = Optional.ofNullable(spawnPoint);
   }
 
   public int getMinPlayers() {
@@ -506,7 +520,7 @@ public abstract class Minigame implements Listener {
     return true; // Default behavior - can be overridden
   }
 
-  protected boolean shouldAutoStart(){
+  protected boolean shouldAutoStart() {
     return true;
   }
 
@@ -518,3 +532,7 @@ public abstract class Minigame implements Listener {
     this.allowJoinDuringGame = allowJoinDuringGame;
   }
 }
+
+
+
+

@@ -4,7 +4,9 @@ import org.alpacaindustries.iremiaminigamecore.minigame.Minigame;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameState;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -27,9 +29,8 @@ class EventNotifyingMinigame extends Minigame {
     setMinPlayers(delegate.getMinPlayers());
     setMaxPlayers(delegate.getMaxPlayers());
     setAllowJoinDuringGame(delegate.isAllowJoinDuringGame());
-    if (delegate.getSpawnPoint() != null) {
-      setSpawnPoint(delegate.getSpawnPoint());
-    }
+    setSpawnPoint(delegate.getSpawnPoint().get());
+
   }
 
   @Override
@@ -51,7 +52,7 @@ class EventNotifyingMinigame extends Minigame {
   }
 
   @Override
-  public boolean addPlayer(Player player) {
+  public boolean addPlayer(@NotNull Player player) {
     boolean result = delegate.addPlayer(player);
     if (result) {
       api.notifyListeners("playerJoin", player, this);
@@ -60,7 +61,7 @@ class EventNotifyingMinigame extends Minigame {
   }
 
   @Override
-  public void removePlayer(Player player) {
+  public void removePlayer(@NotNull Player player) {
     delegate.removePlayer(player);
     api.notifyListeners("playerLeave", player, this);
   }
@@ -83,7 +84,7 @@ class EventNotifyingMinigame extends Minigame {
   }
 
   @Override
-  protected void onPlayerJoin(Player player) {
+  protected void onPlayerJoin(@NotNull Player player) {
     // This will be called by the delegate
   }
 
@@ -114,12 +115,12 @@ class EventNotifyingMinigame extends Minigame {
   }
 
   @Override
-  public void setState(MinigameState state) {
+  public void setState(@NotNull MinigameState state) {
     delegate.setState(state);
   }
 
   @Override
-  public Location getSpawnPoint() {
+  public @NotNull Optional<Location> getSpawnPoint() {
     return delegate.getSpawnPoint();
   }
 

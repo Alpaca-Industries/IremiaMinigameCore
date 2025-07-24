@@ -8,10 +8,13 @@ import org.alpacaindustries.iremiaminigamecore.minigame.Minigame;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.Objects;
 
 /**
  * Implementation of the IremiaMinigameAPI
@@ -21,8 +24,8 @@ public class IremiaMinigameAPIImpl implements IremiaMinigameAPI {
 
   private static final String API_VERSION = "1.0.0";
 
-  private final MinigameManager minigameManager;
-  private final Logger logger;
+  private final @NotNull MinigameManager minigameManager;
+  private final @NotNull Logger logger;
 
   // Track which plugins registered which types for proper cleanup
   private final Map<String, Plugin> typeOwners = new ConcurrentHashMap<>();
@@ -31,31 +34,21 @@ public class IremiaMinigameAPIImpl implements IremiaMinigameAPI {
   // Global event listeners
   private final Map<Plugin, Set<MinigameEventListener>> globalListeners = new ConcurrentHashMap<>();
 
-  public IremiaMinigameAPIImpl(MinigameManager minigameManager, Logger logger) {
-    this.minigameManager = minigameManager;
-    this.logger = logger;
+  public IremiaMinigameAPIImpl(@NotNull MinigameManager minigameManager, @NotNull Logger logger) {
+    this.minigameManager = Objects.requireNonNull(minigameManager, "MinigameManager cannot be null");
+    this.logger = Objects.requireNonNull(logger, "Logger cannot be null");
   }
 
   @Override
-  public String getAPIVersion() {
+  public @NotNull String getAPIVersion() {
     return API_VERSION;
   }
 
   @Override
-  public boolean registerMinigameType(Plugin plugin, String typeId, MinigameFactory factory, String displayName) {
-    if (plugin == null) {
-      logger.warning("Cannot register minigame type: plugin is null");
-      return false;
-    }
-    if (typeId == null || typeId.trim().isEmpty()) {
-      logger.warning("Cannot register minigame type: typeId is null or empty");
-      return false;
-    }
-    if (factory == null) {
-      logger.warning("Cannot register minigame type: factory is null");
-      return false;
-    }
-
+  public boolean registerMinigameType(@NotNull Plugin plugin, @NotNull String typeId, @NotNull MinigameFactory factory, @Nullable String displayName) {
+    Objects.requireNonNull(plugin, "Plugin cannot be null");
+    Objects.requireNonNull(typeId, "typeId cannot be null");
+    Objects.requireNonNull(factory, "MinigameFactory cannot be null");
     // Normalize type ID to include plugin prefix if not present
     String normalizedTypeId = typeId.contains(":") ? typeId : plugin.getName().toLowerCase() + ":" + typeId;
 
@@ -92,9 +85,10 @@ public class IremiaMinigameAPIImpl implements IremiaMinigameAPI {
   }
 
   @Override
-  public boolean unregisterMinigameType(Plugin plugin, String typeId) {
+  public boolean unregisterMinigameType(@NotNull Plugin plugin, @NotNull String typeId) {
+    Objects.requireNonNull(plugin, "Plugin cannot be null");
+    Objects.requireNonNull(typeId, "typeId cannot be null");
     String normalizedTypeId = typeId.contains(":") ? typeId : plugin.getName().toLowerCase() + ":" + typeId;
-
     Plugin owner = typeOwners.get(normalizedTypeId);
     if (owner == null) {
       return false; // Type doesn't exist
@@ -118,58 +112,70 @@ public class IremiaMinigameAPIImpl implements IremiaMinigameAPI {
   }
 
   @Override
-  public Minigame createMinigame(String typeId, String instanceId) {
+  public @Nullable Minigame createMinigame(@NotNull String typeId, @NotNull String instanceId) {
+    Objects.requireNonNull(typeId, "typeId cannot be null");
+    Objects.requireNonNull(instanceId, "instanceId cannot be null");
     return minigameManager.createMinigame(typeId, instanceId);
   }
 
   @Override
-  public Map<String, Minigame> getActiveMinigames() {
+  public @NotNull Map<String, Minigame> getActiveMinigames() {
     return minigameManager.getActiveGames();
   }
 
   @Override
-  public Set<String> getRegisteredTypes() {
+  public @NotNull Set<String> getRegisteredTypes() {
     return new HashSet<>(typeOwners.keySet());
   }
 
   @Override
-  public Minigame getPlayerMinigame(Player player) {
+  public @Nullable Minigame getPlayerMinigame(@NotNull Player player) {
+    Objects.requireNonNull(player, "Player cannot be null");
     return minigameManager.getPlayerGame(player);
   }
 
   @Override
-  public boolean addPlayerToMinigame(Player player, String minigameId) {
+  public boolean addPlayerToMinigame(@NotNull Player player, @NotNull String minigameId) {
+    Objects.requireNonNull(player, "Player cannot be null");
+    Objects.requireNonNull(minigameId, "minigameId cannot be null");
     return minigameManager.addPlayerToGame(player, minigameId);
   }
 
   @Override
-  public boolean removePlayerFromMinigame(Player player) {
+  public boolean removePlayerFromMinigame(@NotNull Player player) {
+    Objects.requireNonNull(player, "Player cannot be null");
     return minigameManager.removePlayerFromGame(player);
   }
 
   @Override
-  public MinigameManager getMinigameManager() {
+  public @NotNull MinigameManager getMinigameManager() {
     return minigameManager;
   }
 
   @Override
-  public boolean isMinigameTypeRegistered(String typeId) {
+  public boolean isMinigameTypeRegistered(@NotNull String typeId) {
+    Objects.requireNonNull(typeId, "typeId cannot be null");
     return typeOwners.containsKey(typeId);
   }
 
   @Override
-  public MinigameTypeInfo getMinigameTypeInfo(String typeId) {
+  public @Nullable MinigameTypeInfo getMinigameTypeInfo(@NotNull String typeId) {
+    Objects.requireNonNull(typeId, "typeId cannot be null");
     return typeInfoMap.get(typeId);
   }
 
   @Override
-  public void registerGlobalMinigameListener(Plugin plugin, MinigameEventListener listener) {
+  public void registerGlobalMinigameListener(@NotNull Plugin plugin, @NotNull MinigameEventListener listener) {
+    Objects.requireNonNull(plugin, "Plugin cannot be null");
+    Objects.requireNonNull(listener, "Listener cannot be null");
     globalListeners.computeIfAbsent(plugin, k -> ConcurrentHashMap.newKeySet()).add(listener);
     logger.info("Registered global minigame listener for plugin " + plugin.getName());
   }
 
   @Override
-  public void unregisterGlobalMinigameListener(Plugin plugin, MinigameEventListener listener) {
+  public void unregisterGlobalMinigameListener(@NotNull Plugin plugin, @NotNull MinigameEventListener listener) {
+    Objects.requireNonNull(plugin, "Plugin cannot be null");
+    Objects.requireNonNull(listener, "Listener cannot be null");
     Set<MinigameEventListener> listeners = globalListeners.get(plugin);
     if (listeners != null) {
       listeners.remove(listener);
@@ -182,7 +188,8 @@ public class IremiaMinigameAPIImpl implements IremiaMinigameAPI {
   /**
    * Clean up all registrations for a plugin (called when plugin disables)
    */
-  public void cleanupPlugin(Plugin plugin) {
+  public void cleanupPlugin(@NotNull Plugin plugin) {
+    Objects.requireNonNull(plugin, "Plugin cannot be null");
     // Unregister all minigame types
     List<String> typesToRemove = new ArrayList<>();
     for (Map.Entry<String, Plugin> entry : typeOwners.entrySet()) {
@@ -204,32 +211,19 @@ public class IremiaMinigameAPIImpl implements IremiaMinigameAPI {
   /**
    * Notify all global listeners of an event
    */
-  public void notifyListeners(String eventType, Object... args) {
+  public void notifyListeners(@NotNull String eventType, Object... args) {
+    Objects.requireNonNull(eventType, "eventType cannot be null");
     for (Set<MinigameEventListener> listeners : globalListeners.values()) {
       for (MinigameEventListener listener : listeners) {
         try {
           switch (eventType) {
-            case "created":
-              listener.onMinigameCreated((Minigame) args[0]);
-              break;
-            case "started":
-              listener.onMinigameStart((Minigame) args[0]);
-              break;
-            case "ended":
-              listener.onMinigameEnd((Minigame) args[0]);
-              break;
-            case "playerJoin":
-              listener.onPlayerJoinMinigame((Player) args[0], (Minigame) args[1]);
-              break;
-            case "playerLeave":
-              listener.onPlayerLeaveMinigame((Player) args[0], (Minigame) args[1]);
-              break;
-            case "playerEliminated":
-              listener.onPlayerEliminated((Player) args[0], (Minigame) args[1], (String) args[2]);
-              break;
-            case "countdownStart":
-              listener.onCountdownStart((Minigame) args[0]);
-              break;
+            case "created" -> listener.onMinigameCreated((Minigame) args[0]);
+            case "started" -> listener.onMinigameStart((Minigame) args[0]);
+            case "ended" -> listener.onMinigameEnd((Minigame) args[0]);
+            case "playerJoin" -> listener.onPlayerJoinMinigame((Player) args[0], (Minigame) args[1]);
+            case "playerLeave" -> listener.onPlayerLeaveMinigame((Player) args[0], (Minigame) args[1]);
+            case "playerEliminated" -> listener.onPlayerEliminated((Player) args[0], (Minigame) args[1], (String) args[2]);
+            case "countdownStart" -> listener.onCountdownStart((Minigame) args[0]);
           }
         } catch (Exception e) {
           logger.warning("Error in global minigame listener: " + e.getMessage());

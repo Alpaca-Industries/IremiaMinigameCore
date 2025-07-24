@@ -13,28 +13,26 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Command handler for minigame commands using the traditional Bukkit API
  * This approach avoids type issues with Paper's Brigadier implementation
  */
 public class MinigameCommand implements CommandExecutor, TabCompleter {
-  private final IremiaMinigameCorePlugin plugin;
-  private final MinigameManager minigameManager;
+  private final @NotNull IremiaMinigameCorePlugin plugin;
+  private final @NotNull MinigameManager minigameManager;
   private static final Component PREFIX = Component.text("[", NamedTextColor.DARK_GRAY)
       .append(Component.text("Minigame", NamedTextColor.GOLD, TextDecoration.BOLD))
       .append(Component.text("] ", NamedTextColor.DARK_GRAY));
 
-  public MinigameCommand(IremiaMinigameCorePlugin plugin) {
-    if (plugin == null) {
-      throw new IllegalArgumentException("Plugin cannot be null");
-    }
-
-    this.plugin = plugin;
+  public MinigameCommand(@NotNull IremiaMinigameCorePlugin plugin) {
+    this.plugin = Objects.requireNonNull(plugin, "Plugin cannot be null");
     this.minigameManager = plugin.getMinigameManager();
 
     // Register command the traditional way

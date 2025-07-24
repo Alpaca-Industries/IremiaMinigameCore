@@ -14,6 +14,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +54,7 @@ public abstract class SurvivalMinigame extends Minigame {
     super.onStart();
 
     alivePlayers.clear();
-    for (Player player : getOnlinePlayers()) {
+    for (Player player : getValidOnlinePlayers()) {
       alivePlayers.add(player.getUniqueId());
       preparePlayer(player);
     }
@@ -75,7 +76,7 @@ public abstract class SurvivalMinigame extends Minigame {
   }
 
   @Override
-  protected void onPlayerJoin(Player player) {
+  protected void onPlayerJoin(@NotNull Player player) {
     super.onPlayerJoin(player);
 
     if (getState() == MinigameState.WAITING || getState() == MinigameState.COUNTDOWN) {
@@ -207,7 +208,7 @@ public abstract class SurvivalMinigame extends Minigame {
     }
 
     // Also clean up any remaining online players just in case
-    for (Player player : getOnlinePlayers()) {
+    for (Player player : getValidOnlinePlayers()) {
       try {
         scoreboard.hideFrom(player);
       } catch (Exception e) {
