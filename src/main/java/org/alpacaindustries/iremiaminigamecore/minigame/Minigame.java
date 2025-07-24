@@ -1,11 +1,14 @@
 package org.alpacaindustries.iremiaminigamecore.minigame;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 
 import net.kyori.adventure.text.Component;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -173,12 +176,10 @@ public abstract class Minigame implements Listener {
    * @param player Player to remove
    */
   public void removePlayer(Player player) {
-    if (!players.contains(player.getUniqueId())) {
-      return;
-    }
+    if (!players.contains(player.getUniqueId())) return;
 
     players.remove(player.getUniqueId());
-    playerCache.remove(player.getUniqueId());
+    onPlayerCleanup(player);
     onPlayerLeave(player);
 
     // End game if not enough players
@@ -284,8 +285,71 @@ public abstract class Minigame implements Listener {
   public void cleanupPlayerCache() {
     playerCache.entrySet().removeIf(entry -> {
       Player player = entry.getValue();
-      return player == null || !player.isOnline() || !players.contains(entry.getKey());
+      boolean shouldRemove = player == null || !player.isOnline() || !this.players.contains(entry.getKey());
+
+      if (shouldRemove && player != null) {
+        this.getManager().getPlugin().getLogger().fine(
+            "Cleaning up cached player: " + player.getName() + " from minigame " + this.getId()
+        );
+      }
+      return shouldRemove;
     });
+  }
+
+  protected void refreshAllOnlinePlayers() {
+    for (UUID uuid : new HashSet<>(this.players)) {
+      Player player = this.getPlayerById(uuid);
+      if (player == null || !player.isOnline()) {
+        // Player is offline, remove them
+        this.players.remove(uuid);
+        this.playerCache.remove(uuid);
+      } else {
+        // Refresh cache
+        this.playerCache.put(uuid, player);
+      }
+    }
+  }
+
+  protected void onStateChange(MinigameState oldState, MinigameState newState) {
+    this.getManager().getPlugin().getLogger().fine(
+        "Minigame " + this.getId() + " state changed from " + oldState + " to " + newState
+    );
+  }
+
+  protected List<Player> getValidOnlinePlayers() {
+    List<Player> validPlayers = new ArrayList<>();
+
+    for (UUID uuid : new HashSet<>(this.players)) {
+      Player player = this.getPlayerById(uuid);
+      if (player != null && player.isOnline()) {
+        validPlayers.add(player);
+      } else {
+        // Remove invalid players
+        this.players.remove(uuid);
+        this.playerCache.remove(uuid);
+      }
+    }
+
+    return validPlayers;
+  }
+
+  public void validateGameState() {
+    // Remove offline players
+    this.refreshAllOnlinePlayers();
+
+    // Check if game should end due to player count
+    if (this.state == MinigameState.RUNNING && this.players.size() < this.minPlayers) {
+      this.getManager().getPlugin().getLogger().warning(
+          "Minigame " + this.getId() + " has too few players (" + this.players.size() +
+              "/" + this.minPlayers + "), ending game"
+      );
+      this.end();
+    }
+  }
+
+  public void performHealthCheck() {
+    this.validateGameState();
+    this.cleanupPlayerCache();
   }
 
   // Abstract methods that minigames must implement
@@ -306,6 +370,8 @@ public abstract class Minigame implements Listener {
   protected void onEnd() {
     // Default implementation - cleanup player cache
     cleanupPlayerCache();
+    refreshAllOnlinePlayers();
+
     getManager().getPlugin().getLogger().info("Minigame " + getId() + " ended");
   }
 
@@ -331,8 +397,12 @@ public abstract class Minigame implements Listener {
    */
   protected void onPlayerLeave(Player player) {
     // Default implementation - cleanup player cache
-    playerCache.remove(player.getUniqueId());
+    onPlayerCleanup(player);
     getManager().getPlugin().getLogger().info("Player " + player.getName() + " left minigame " + getId());
+  }
+
+  protected void onPlayerCleanup(Player player) {
+    playerCache.remove(player.getUniqueId());
   }
 
   /**
@@ -343,6 +413,23 @@ public abstract class Minigame implements Listener {
   protected void onCountdownStart() {
     // Default implementation - can be overridden
     getManager().getPlugin().getLogger().info("Countdown started for minigame " + getId());
+  }
+
+  // Event handlers
+
+  @EventHandler
+  public void onPlayerQuitServer(PlayerQuitEvent event) {
+    Player player = event.getPlayer();
+    if (this.players.contains(player.getUniqueId())) {
+      this.getManager().getPlugin().getLogger().info(
+          "Player " + player.getName() + " quit server while in minigame " + this.getId()
+      );
+
+      // Schedule removal on next tick to avoid concurrent modification
+      Bukkit.getScheduler().runTask(this.getManager().getPlugin(), () -> {
+        this.removePlayer(player);
+      });
+    }
   }
 
   // Getters and Setters
@@ -372,7 +459,11 @@ public abstract class Minigame implements Listener {
   }
 
   public void setState(MinigameState state) {
+    MinigameState oldState = this.state;
     this.state = state;
+
+    // Call state change hook
+    this.onStateChange(oldState, state);
   }
 
   public Location getSpawnPoint() {
@@ -409,6 +500,14 @@ public abstract class Minigame implements Listener {
       throw new IllegalArgumentException("Maximum players cannot be less than minimum players");
     }
     this.maxPlayers = maxPlayers;
+  }
+
+  protected boolean shouldAutoRemoveOnQuit(Player player) {
+    return true; // Default behavior - can be overridden
+  }
+
+  protected boolean shouldAutoStart(){
+    return true;
   }
 
   public boolean isAllowJoinDuringGame() {

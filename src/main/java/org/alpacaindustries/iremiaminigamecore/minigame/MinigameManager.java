@@ -2,6 +2,7 @@ package org.alpacaindustries.iremiaminigamecore.minigame;
 
 import org.alpacaindustries.iremiaminigamecore.IremiaMinigameCorePlugin;
 import org.alpacaindustries.iremiaminigamecore.api.factory.MinigameFactory;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -24,6 +25,7 @@ public class MinigameManager {
 
   public MinigameManager(IremiaMinigameCorePlugin plugin) {
     this.plugin = plugin;
+    startHealthCheckScheduler();
   }
 
   /**
@@ -180,6 +182,14 @@ public class MinigameManager {
     // Remove from active games
     activeGames.remove(gameId);
     plugin.getLogger().info("Minigame " + gameId + " has ended and been cleaned up");
+  }
+
+  public void startHealthCheckScheduler() {
+    Bukkit.getScheduler().runTaskTimer(this.getPlugin(), () -> {
+      for (Minigame minigame : this.activeGames.values()) {
+        minigame.performHealthCheck();
+      }
+    }, 20L * 30, 20L * 30); // Every 30 seconds
   }
 
   /**
