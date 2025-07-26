@@ -120,7 +120,6 @@ public abstract class Minigame implements Listener {
     // Clear caches and collections to prevent memory leaks
     playerCache.clear();
     endListeners.clear();
-    players.clear();
     // Loop logic: schedule restart if enabled
     if (shouldLoop) {
       manager.getPlugin().getServer().getScheduler().runTaskLater(
@@ -341,7 +340,7 @@ public abstract class Minigame implements Listener {
 
     for (UUID uuid : new HashSet<>(this.players)) {
       Player player = this.getPlayerById(uuid);
-      if (player != null && player.isOnline()) {
+      if (player != null && player.isOnline() && !player.isDead()) {
         validPlayers.add(player);
       } else {
         // Remove invalid players

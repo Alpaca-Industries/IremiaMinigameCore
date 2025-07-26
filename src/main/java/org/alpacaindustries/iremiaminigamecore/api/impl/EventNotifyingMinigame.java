@@ -89,7 +89,7 @@ class EventNotifyingMinigame extends Minigame {
   }
 
   @Override
-  protected void onPlayerLeave(Player player) {
+  protected void onPlayerLeave(@NotNull Player player) {
     // This will be called by the delegate
   }
 

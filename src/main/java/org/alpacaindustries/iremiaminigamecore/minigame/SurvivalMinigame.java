@@ -90,7 +90,7 @@ public abstract class SurvivalMinigame extends Minigame {
   }
 
   @Override
-  protected void onPlayerLeave(Player player) {
+  protected void onPlayerLeave(@NotNull Player player) {
     super.onPlayerLeave(player);
 
     alivePlayers.remove(player.getUniqueId());
