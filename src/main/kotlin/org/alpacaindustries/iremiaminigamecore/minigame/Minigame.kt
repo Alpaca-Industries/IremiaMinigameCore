@@ -205,7 +205,7 @@ abstract class Minigame(
     private fun cleanup() {
         playerCache.clear()
         endListeners.clear()
-        _players.clear()
+        // _players.clear()
     }
 
     /**
