@@ -1,9 +1,9 @@
-package org.alpacaindustries.iremiaminigamecore.minigame;
+package org.alpacaindustries.iremiaminigamecore.minigame
 
 /**
  * Represents the possible states of a minigame.
  */
-public enum MinigameState {
+enum class MinigameState {
     /**
      * Game is waiting for players to join
      */

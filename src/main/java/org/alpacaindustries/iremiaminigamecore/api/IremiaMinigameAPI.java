@@ -1,7 +1,7 @@
 package org.alpacaindustries.iremiaminigamecore.api;
 
-import org.alpacaindustries.iremiaminigamecore.api.factory.MinigameFactory;
 import org.alpacaindustries.iremiaminigamecore.minigame.Minigame;
+import org.alpacaindustries.iremiaminigamecore.minigame.MinigameFactory;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;

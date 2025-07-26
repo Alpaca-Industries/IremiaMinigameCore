@@ -3,8 +3,8 @@ package org.alpacaindustries.iremiaminigamecore.api.impl;
 import org.alpacaindustries.iremiaminigamecore.api.IremiaMinigameAPI;
 import org.alpacaindustries.iremiaminigamecore.api.MinigameEventListener;
 import org.alpacaindustries.iremiaminigamecore.api.MinigameTypeInfo;
-import org.alpacaindustries.iremiaminigamecore.api.factory.MinigameFactory;
 import org.alpacaindustries.iremiaminigamecore.minigame.Minigame;
+import org.alpacaindustries.iremiaminigamecore.minigame.MinigameFactory;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -60,10 +60,10 @@ public class IremiaMinigameAPIImpl implements IremiaMinigameAPI {
     }
 
     try {
-      // Create a wrapper factory that includes event notifications
-      MinigameFactory wrappedFactory = new EventNotifyingFactory(factory, this);
+      // Create a wrapper factory that includes event notifications and converts to Kotlin factory
+      EventNotifyingFactory wrappedFactory = new EventNotifyingFactory(factory, this);
 
-      // Register with the manager
+      // Register with the manager using the wrapped factory
       minigameManager.registerMinigame(normalizedTypeId, wrappedFactory);
 
       // Track ownership and info

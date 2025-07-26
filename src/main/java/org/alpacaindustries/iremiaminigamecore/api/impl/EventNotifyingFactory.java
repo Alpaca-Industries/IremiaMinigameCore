@@ -1,12 +1,13 @@
 package org.alpacaindustries.iremiaminigamecore.api.impl;
 
-import org.alpacaindustries.iremiaminigamecore.api.factory.MinigameFactory;
 import org.alpacaindustries.iremiaminigamecore.minigame.Minigame;
+import org.alpacaindustries.iremiaminigamecore.minigame.MinigameFactory;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Wrapper factory that adds event notifications to externally registered
- * minigames
+ * minigames and bridges Java MinigameFactory to Kotlin MinigameFactoryKt
  */
 class EventNotifyingFactory implements MinigameFactory {
 
@@ -19,7 +20,7 @@ class EventNotifyingFactory implements MinigameFactory {
 	}
 
 	@Override
-	public Minigame createMinigame(String id, MinigameManager manager) {
+	public @Nullable Minigame createMinigame(String id, MinigameManager manager) {
 		Minigame minigame = delegate.createMinigame(id, manager);
 
 		if (minigame != null) {
