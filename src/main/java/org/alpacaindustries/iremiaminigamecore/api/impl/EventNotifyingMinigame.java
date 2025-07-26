@@ -29,7 +29,7 @@ class EventNotifyingMinigame extends Minigame {
     setMinPlayers(delegate.getMinPlayers());
     setMaxPlayers(delegate.getMaxPlayers());
     setAllowJoinDuringGame(delegate.isAllowJoinDuringGame());
-    setSpawnPoint(delegate.getSpawnPoint().get());
+    setSpawnPoint(delegate.getSpawnPoint());
 
   }
 
@@ -89,7 +89,7 @@ class EventNotifyingMinigame extends Minigame {
   }
 
   @Override
-  protected void onPlayerLeave(Player player) {
+  protected void onPlayerLeave(@NotNull Player player) {
     // This will be called by the delegate
   }
 
@@ -98,36 +98,24 @@ class EventNotifyingMinigame extends Minigame {
     // This will be called by the delegate
   }
 
-  // Delegate getters and simple methods
-  @Override
-  public Set<UUID> getPlayers() {
+  // These methods access the delegate's properties since they are final in the parent class
+  @NotNull
+  public Set<UUID> getDelegatePlayes() {
     return delegate.getPlayers();
   }
 
-  @Override
-  public int getPlayerCount() {
+  public int getDelegatePlayerCount() {
     return delegate.getPlayerCount();
   }
 
-  @Override
-  public MinigameState getState() {
+  @NotNull
+  public MinigameState getDelegateState() {
     return delegate.getState();
   }
 
-  @Override
-  public void setState(@NotNull MinigameState state) {
-    delegate.setState(state);
-  }
-
-  @Override
-  public @NotNull Optional<Location> getSpawnPoint() {
-    return delegate.getSpawnPoint();
-  }
-
-  @Override
-  public void setSpawnPoint(Location spawnPoint) {
-    delegate.setSpawnPoint(spawnPoint);
-    super.setSpawnPoint(spawnPoint);
+  @NotNull
+  public Optional<Location> getDelegateSpawnPoint() {
+    return Optional.ofNullable(delegate.getSpawnPoint());
   }
 
   // Add method to expose elimination events

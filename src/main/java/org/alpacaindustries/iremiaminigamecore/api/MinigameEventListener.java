@@ -63,9 +63,9 @@ public interface MinigameEventListener {
   }
 
   /**
-   * Called when a minigame's countdown starts
+   * Called when a minigame countdown starts
    *
-   * @param minigame The minigame whose countdown started
+   * @param minigame The minigame starting countdown
    */
   default void onCountdownStart(Minigame minigame) {
   }

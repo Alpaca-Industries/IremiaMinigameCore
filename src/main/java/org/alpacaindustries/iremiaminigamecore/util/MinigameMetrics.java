@@ -1,8 +1,8 @@
 package org.alpacaindustries.iremiaminigamecore.util;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.alpacaindustries.iremiaminigamecore.minigame.Minigame;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Performance monitoring and metrics for minigames

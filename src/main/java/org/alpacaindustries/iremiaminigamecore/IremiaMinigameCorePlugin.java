@@ -7,10 +7,7 @@ import org.alpacaindustries.iremiaminigamecore.minigame.MinigameConfig;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Objects;
 
 /**
  * IremiaMinigameCore - Core minigame management system
@@ -55,7 +52,6 @@ public class IremiaMinigameCorePlugin extends JavaPlugin implements Listener {
       getLogger().info("========================================");
     } catch (Exception e) {
       getLogger().severe("Failed to enable IremiaMinigameCore: " + e.getMessage());
-      e.printStackTrace();
       getServer().getPluginManager().disablePlugin(this);
     }
   }
@@ -84,7 +80,6 @@ public class IremiaMinigameCorePlugin extends JavaPlugin implements Listener {
       getLogger().info("IremiaMinigameCore has been disabled!");
     } catch (Exception e) {
       getLogger().severe("Error during plugin shutdown: " + e.getMessage());
-      e.printStackTrace();
     }
   }
 
