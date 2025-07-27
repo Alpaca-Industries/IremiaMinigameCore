@@ -1,4 +1,4 @@
-package org.alpacaindustries.iremiaminigamecore.system.ui
+package org.alpacaindustries.iremiaminigamecore.system.ui;
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor

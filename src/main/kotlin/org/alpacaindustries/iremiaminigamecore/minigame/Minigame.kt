@@ -134,6 +134,32 @@ abstract class Minigame(
     }
 
     /**
+     * Reset per-round state before starting a new round (when looping).
+     * Override in subclasses to clear scores, timers, etc.
+     */
+    protected open fun resetForNextRound() {
+        // Default: do nothing. Subclasses should override as needed.
+    }
+
+    /**
+     * Restart the minigame loop by skipping full cleanup and going straight to countdown.
+     * This is a smoother loop for continuous play.
+     */
+    private fun loopRestart() {
+        manager.plugin.server.scheduler.runTaskLater(
+            manager.plugin,
+            Runnable {
+                if (!isDestroyed.get()) {
+                    resetForNextRound()
+                    setState(MinigameState.COUNTDOWN)
+                    onCountdownStart()
+                }
+            },
+            loopDelayTicks
+        )
+    }
+
+    /**
      * End the minigame and clean up resources.
      */
     @Synchronized
@@ -162,13 +188,14 @@ abstract class Minigame(
             }
         }
 
+        // Loop logic: schedule smooth restart if enabled
+        if (shouldLoop && !isDestroyed.get()) {
+            loopRestart()
+            return
+        }
+
         // Clear caches and collections to prevent memory leaks
         cleanup()
-
-        // Loop logic: schedule restart if enabled
-        if (shouldLoop && !isDestroyed.get()) {
-            scheduleRestart()
-        }
     }
 
     /**
@@ -205,43 +232,7 @@ abstract class Minigame(
     private fun cleanup() {
         playerCache.clear()
         endListeners.clear()
-        // _players.clear()
-    }
-
-    /**
-     * Schedule a restart for looping minigames
-     */
-    private fun scheduleRestart() {
-        manager.plugin.server.scheduler.runTaskLater(
-            manager.plugin,
-            Runnable {
-                if (!isDestroyed.get()) {
-                    restartMinigame()
-                }
-            },
-            loopDelayTicks
-        )
-    }
-
-    /**
-     * Restart the minigame for looping.
-     * This resets state and calls initialize/start.
-     */
-    private fun restartMinigame() {
-        try {
-            if (isDestroyed.get()) {
-                manager.plugin.logger.warning("Cannot restart destroyed minigame $id")
-                return
-            }
-
-            // Reset initialization state for restart
-            isInitialized.set(false)
-            initialize()
-            start()
-        } catch (e: Exception) {
-            manager.plugin.logger.severe("Error restarting minigame $id: ${e.message}")
-            e.printStackTrace()
-        }
+        _players.clear()
     }
 
     /**
