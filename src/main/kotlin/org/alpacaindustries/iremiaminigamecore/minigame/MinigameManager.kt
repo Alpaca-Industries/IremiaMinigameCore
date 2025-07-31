@@ -1,5 +1,6 @@
 package org.alpacaindustries.iremiaminigamecore.minigame
 
+import net.kyori.adventure.text.minimessage.MiniMessage
 import org.alpacaindustries.iremiaminigamecore.IremiaMinigameCorePlugin
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
@@ -81,29 +82,43 @@ class MinigameManager(val plugin: IremiaMinigameCorePlugin) {
     }
 
     /**
-     * Add a player to a minigame.
+     * Check if a player is currently in any minigame.
+     * @param player The player to check
+     * @return true if the player is in a minigame
+     */
+    fun isPlayerInGame(player: Player): Boolean = playerGameMap.containsKey(player.uniqueId)
+
+    /**
+     * Add a player to a minigame, with rich error handling.
      *
      * @param player Player to add
      * @param gameId ID of the minigame to add player to
-     * @return true if successfully added
+     * @return result of the join attempt
      */
-    fun addPlayerToGame(player: Player, gameId: String): Boolean {
-        if (playerGameMap.containsKey(player.uniqueId)) {
-            player.sendMessage("You are already in a game! Leave it first.")
-            return false
+    fun addPlayerToGame(player: Player, gameId: MinigameId): AddPlayerResult {
+        val miniMessage = MiniMessage.miniMessage()
+        if (isPlayerInGame(player)) {
+            player.sendMessage(
+                MinigameConfig.getMsgGameInProgress()
+                    .append(miniMessage.deserialize(" <red>You are already in a game! Leave it first."))
+            )
+            return AddPlayerResult.AlreadyInGame
         }
 
         val game = activeGames[gameId]
         if (game == null) {
-            player.sendMessage("That game doesn't exist!")
-            return false
+            player.sendMessage(
+                MinigameConfig.getMsgGameInProgress()
+                    .append(miniMessage.deserialize(" <red>That game doesn't exist!"))
+            )
+            return AddPlayerResult.GameNotFound
         }
 
         return if (game.addPlayer(player)) {
             playerGameMap[player.uniqueId] = gameId
-            true
+            AddPlayerResult.Success
         } else {
-            false
+            AddPlayerResult.Failed
         }
     }
 
@@ -115,27 +130,17 @@ class MinigameManager(val plugin: IremiaMinigameCorePlugin) {
      */
     fun removePlayerFromGame(player: Player): Boolean {
         val gameId = playerGameMap[player.uniqueId] ?: return false
-
         val game = activeGames[gameId]
         if (game == null) {
+            plugin.logger.warning("Player ${player.name} was mapped to non-existent game $gameId. Cleaning up mapping.")
             playerGameMap.remove(player.uniqueId)
             return false
         }
-
-        game.removePlayer(player)
-        playerGameMap.remove(player.uniqueId)
-        return true
-    }
-
-    /**
-     * Get the minigame a player is currently in.
-     *
-     * @param player The player
-     * @return The minigame or null if not in a game
-     */
-    fun getPlayerGame(player: Player): Minigame? {
-        val gameId = playerGameMap[player.uniqueId] ?: return null
-        return activeGames[gameId]
+        val removed = game.removePlayer(player)
+        if (removed) {
+            playerGameMap.remove(player.uniqueId)
+        }
+        return removed
     }
 
     /**
@@ -176,4 +181,30 @@ class MinigameManager(val plugin: IremiaMinigameCorePlugin) {
      * @return Set of minigame type IDs
      */
     fun getMinigameTypes(): Set<String> = gameFactories.keys.toSet()
+
+    /**
+     * Get the minigame a player is currently in.
+     *
+     * @param player The player
+     * @return The minigame or null if not in a game
+     */
+    fun getPlayerGame(player: Player): Minigame? {
+        val gameId = playerGameMap[player.uniqueId] ?: return null
+        return activeGames[gameId]
+    }
+}
+
+/**
+ * Type alias for minigame IDs for clarity.
+ */
+typealias MinigameId = String
+
+/**
+ * Result of attempting to add a player to a minigame.
+ */
+sealed class AddPlayerResult {
+    object Success : AddPlayerResult()
+    object AlreadyInGame : AddPlayerResult()
+    object GameNotFound : AddPlayerResult()
+    object Failed : AddPlayerResult()
 }

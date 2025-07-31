@@ -1,9 +1,9 @@
 package org.alpacaindustries.iremiaminigamecore.command
 
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.format.TextDecoration
+import net.kyori.adventure.text.minimessage.MiniMessage
 import org.alpacaindustries.iremiaminigamecore.IremiaMinigameCorePlugin
+import org.alpacaindustries.iremiaminigamecore.minigame.AddPlayerResult
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
@@ -26,15 +26,15 @@ class MinigameCommand(private val plugin: IremiaMinigameCorePlugin) : CommandExe
     private val minigameManager: MinigameManager = plugin.minigameManager!!
 
     companion object {
-        val PREFIX = Component.text("[", NamedTextColor.DARK_GRAY)
-            .append(Component.text("Minigame", NamedTextColor.GOLD, TextDecoration.BOLD))
-            .append(Component.text("] ", NamedTextColor.DARK_GRAY))
+        private val miniMessage = MiniMessage.miniMessage()
+        private val PREFIX = "<gray>[<gold><b>Minigame</b></gold>] </gray>"
+        fun prefixed(msg: String): Component = miniMessage.deserialize(PREFIX + msg)
     }
 
     init {
         plugin.getCommand("minigame")?.let { command ->
             command.setExecutor(this)
-            command.setTabCompleter(this)
+            command.tabCompleter = this
         } ?: plugin.logger.warning("Failed to register minigame command - command not found in plugin.yml")
     }
 
@@ -89,7 +89,7 @@ class MinigameCommand(private val plugin: IremiaMinigameCorePlugin) : CommandExe
             handleResult(sender, result)
             true
         } catch (e: Exception) {
-            sender.sendPrefixed(Component.text("An error occurred: ${e.message}", NamedTextColor.RED))
+            sender.sendMessage(prefixed("<red>An error occurred: ${e.message}"))
             plugin.logger.warning("Error in command execution: ${e.message}")
             true
         }
@@ -154,8 +154,8 @@ class MinigameCommand(private val plugin: IremiaMinigameCorePlugin) : CommandExe
     private fun handleResult(sender: CommandSender, result: CommandResult) {
         when (result) {
             is CommandResult.Success -> { /* Already handled in command methods */ }
-            is CommandResult.Error -> sender.sendPrefixed(result.message)
-            is CommandResult.Usage -> sender.sendPrefixed(Component.text(result.usage, NamedTextColor.RED))
+            is CommandResult.Error -> sender.sendMessage(result.message)
+            is CommandResult.Usage -> sender.sendMessage(prefixed(result.usage))
         }
     }
 
@@ -163,47 +163,63 @@ class MinigameCommand(private val plugin: IremiaMinigameCorePlugin) : CommandExe
 
     private fun handleJoin(sender: CommandSender, gameId: String): CommandResult {
         val player = sender.requirePlayer() ?: return CommandResult.Error(
-            Component.text("Only players can join games.", NamedTextColor.RED)
+            prefixed("<red>Only players can join games.")
         )
 
-        return if (minigameManager.addPlayerToGame(player, gameId)) {
-            player.sendPrefixed(
-                Component.text("You joined the game: ", NamedTextColor.GREEN)
-                    .append(Component.text(gameId, NamedTextColor.GOLD))
-            )
-            CommandResult.Success
-        } else {
-            CommandResult.Error(Component.text("Failed to join the game.", NamedTextColor.RED))
+        val game = minigameManager.getActiveGames()[gameId]
+        if (game == null) {
+            return CommandResult.Error(prefixed("<red>Game not found: <yellow>$gameId"))
+        }
+
+        if (game.state == org.alpacaindustries.iremiaminigamecore.minigame.MinigameState.RUNNING && !game.isAllowJoinDuringGame) {
+            return CommandResult.Error(prefixed("<red>You cannot join this game while it is running."))
+        }
+
+        val addResult = minigameManager.addPlayerToGame(player, gameId)
+        when (addResult) {
+            is AddPlayerResult.Success -> {
+                player.sendMessage(prefixed("<green>You joined the game: <gold>$gameId"))
+                return CommandResult.Success
+            }
+
+            is AddPlayerResult.AlreadyInGame -> {
+                return CommandResult.Error(prefixed("<red>You are already in a game! Leave it first."))
+            }
+
+            is AddPlayerResult.GameNotFound -> {
+                return CommandResult.Error(prefixed("<red>Game not found: <yellow>$gameId"))
+            }
+
+            is AddPlayerResult.Failed -> {
+                return CommandResult.Error(prefixed("<red>Failed to join the game."))
+            }
         }
     }
 
     private fun handleLeave(sender: CommandSender): CommandResult {
         val player = sender.requirePlayer() ?: return CommandResult.Error(
-            Component.text("Only players can leave games.", NamedTextColor.RED)
+            prefixed("<red>Only players can leave games.")
         )
 
         return if (minigameManager.removePlayerFromGame(player)) {
-            player.sendPrefixed(Component.text("You left the game.", NamedTextColor.GREEN))
+            player.sendMessage(prefixed("<green>You left the game."))
             CommandResult.Success
         } else {
-            CommandResult.Error(Component.text("You are not in a game.", NamedTextColor.RED))
+            CommandResult.Error(prefixed("<red>You are not in a game."))
         }
     }
 
     private fun handleCreate(sender: CommandSender, gameType: String, gameId: String): CommandResult {
         if (!sender.requirePermission(Permissions.CREATE)) {
-            return CommandResult.Error(Component.text("You don't have permission to create minigames.", NamedTextColor.RED))
+            return CommandResult.Error(prefixed("<red>You don't have permission to create minigames."))
         }
 
         val minigame = minigameManager.createMinigame(gameType, gameId)
         return if (minigame != null) {
-            sender.sendPrefixed(
-                Component.text("Created game: ", NamedTextColor.GREEN)
-                    .append(Component.text("${minigame.displayName} ($gameId)", NamedTextColor.GOLD))
-            )
+            sender.sendMessage(prefixed("<green>Created game: <gold>${minigame.displayName} ($gameId)"))
             CommandResult.Success
         } else {
-            CommandResult.Error(Component.text("Failed to create game.", NamedTextColor.RED))
+            CommandResult.Error(prefixed("<red>Failed to create game."))
         }
     }
 
@@ -211,18 +227,14 @@ class MinigameCommand(private val plugin: IremiaMinigameCorePlugin) : CommandExe
         val games = minigameManager.getActiveGames()
 
         if (games.isEmpty()) {
-            sender.sendPrefixed(Component.text("There are no active games.", NamedTextColor.YELLOW))
+            sender.sendMessage(prefixed("<yellow>There are no active games."))
             return CommandResult.Success
         }
 
-        sender.sendPrefixed(Component.text("Active Games:", NamedTextColor.YELLOW))
+        sender.sendMessage(prefixed("<yellow>Active Games:"))
         games.forEach { (gameId, game) ->
             sender.sendMessage(
-                Component.text("- ", NamedTextColor.GRAY)
-                    .append(Component.text(gameId, NamedTextColor.GOLD))
-                    .append(Component.text(" (${game.displayName}): ", NamedTextColor.YELLOW))
-                    .append(Component.text("${game.playerCount} players, ", NamedTextColor.WHITE))
-                    .append(Component.text("Status: ${game.state}", NamedTextColor.AQUA))
+                miniMessage.deserialize("<gray>- <gold>$gameId <yellow>(${game.displayName}): <white>${game.playerCount} players, <aqua>Status: ${game.state}")
             )
         }
 
@@ -231,106 +243,91 @@ class MinigameCommand(private val plugin: IremiaMinigameCorePlugin) : CommandExe
 
     private fun handleStart(sender: CommandSender, gameId: String): CommandResult {
         if (!sender.requirePermission(Permissions.START)) {
-            return CommandResult.Error(Component.text("You don't have permission to start minigames.", NamedTextColor.RED))
+            return CommandResult.Error(prefixed("<red>You don't have permission to start minigames."))
         }
 
         val game = minigameManager.getActiveGames()[gameId] ?: return CommandResult.Error(
-            Component.text("Game not found: $gameId", NamedTextColor.RED)
+            prefixed("<red>Game not found: <yellow>$gameId")
         )
 
         game.startCountdown()
-        sender.sendPrefixed(
-            Component.text("Starting countdown for game: ", NamedTextColor.GREEN)
-                .append(Component.text(gameId, NamedTextColor.GOLD))
-        )
+        sender.sendMessage(prefixed("<green>Starting countdown for game: <gold>$gameId"))
 
         return CommandResult.Success
     }
 
     private fun handleEnd(sender: CommandSender, gameId: String): CommandResult {
         if (!sender.requirePermission(Permissions.END)) {
-            return CommandResult.Error(Component.text("You don't have permission to end minigames.", NamedTextColor.RED))
+            return CommandResult.Error(prefixed("<red>You don't have permission to end minigames."))
         }
 
         val game = minigameManager.getActiveGames()[gameId] ?: return CommandResult.Error(
-            Component.text("Game not found: $gameId", NamedTextColor.RED)
+            prefixed("<red>Game not found: <yellow>$gameId")
         )
 
         game.end()
-        sender.sendPrefixed(
-            Component.text("Ended game: ", NamedTextColor.GREEN)
-                .append(Component.text(gameId, NamedTextColor.GOLD))
-        )
+        sender.sendMessage(prefixed("<green>Ended game: <gold>$gameId"))
 
         return CommandResult.Success
     }
 
     private fun handleSetMin(sender: CommandSender, gameId: String, minPlayers: Int): CommandResult {
         if (!sender.requirePermission(Permissions.SET_MIN)) {
-            return CommandResult.Error(Component.text("You don't have permission to modify minigames.", NamedTextColor.RED))
+            return CommandResult.Error(prefixed("<red>You don't have permission to modify minigames."))
         }
 
         val game = minigameManager.getActiveGames()[gameId] ?: return CommandResult.Error(
-            Component.text("Game not found: $gameId", NamedTextColor.RED)
+            prefixed("<red>Game not found: <yellow>$gameId")
         )
 
         return try {
             game.minPlayers = minPlayers
-            sender.sendPrefixed(
-                Component.text("Set minimum players to $minPlayers for game: ", NamedTextColor.GREEN)
-                    .append(Component.text(gameId, NamedTextColor.GOLD))
-            )
+            sender.sendMessage(prefixed("<green>Set minimum players to $minPlayers for game: <gold>$gameId"))
             CommandResult.Success
         } catch (e: IllegalArgumentException) {
-            CommandResult.Error(Component.text("Invalid value: ${e.message}", NamedTextColor.RED))
+            CommandResult.Error(prefixed("<red>Invalid value: ${e.message}"))
         }
     }
 
     private fun handleSetMax(sender: CommandSender, gameId: String, maxPlayers: Int): CommandResult {
         if (!sender.requirePermission(Permissions.SET_MAX)) {
-            return CommandResult.Error(Component.text("You don't have permission to modify minigames.", NamedTextColor.RED))
+            return CommandResult.Error(prefixed("<red>You don't have permission to modify minigames."))
         }
 
         val game = minigameManager.getActiveGames()[gameId] ?: return CommandResult.Error(
-            Component.text("Game not found: $gameId", NamedTextColor.RED)
+            prefixed("<red>Game not found: <yellow>$gameId")
         )
 
         return try {
             game.maxPlayers = maxPlayers
-            sender.sendPrefixed(
-                Component.text("Set maximum players to $maxPlayers for game: ", NamedTextColor.GREEN)
-                    .append(Component.text(gameId, NamedTextColor.GOLD))
-            )
+            sender.sendMessage(prefixed("<green>Set maximum players to $maxPlayers for game: <gold>$gameId"))
             CommandResult.Success
         } catch (e: IllegalArgumentException) {
-            CommandResult.Error(Component.text("Invalid value: ${e.message}", NamedTextColor.RED))
+            CommandResult.Error(prefixed("<red>Invalid value: ${e.message}"))
         }
     }
 
     private fun handleSetSpawn(sender: CommandSender, gameId: String): CommandResult {
         if (!sender.requirePermission(Permissions.SET_SPAWN)) {
-            return CommandResult.Error(Component.text("You don't have permission to modify minigames.", NamedTextColor.RED))
+            return CommandResult.Error(prefixed("<red>You don't have permission to modify minigames."))
         }
 
         val player = sender.requirePlayer() ?: return CommandResult.Error(
-            Component.text("Only players can set spawn points.", NamedTextColor.RED)
+            prefixed("<red>Only players can set spawn points.")
         )
 
         val game = minigameManager.getActiveGames()[gameId] ?: return CommandResult.Error(
-            Component.text("Game not found: $gameId", NamedTextColor.RED)
+            prefixed("<red>Game not found: <yellow>$gameId")
         )
 
         game.spawnPoint = player.location
-        sender.sendPrefixed(
-            Component.text("Set spawn point for game: ", NamedTextColor.GREEN)
-                .append(Component.text(gameId, NamedTextColor.GOLD))
-        )
+        sender.sendMessage(prefixed("<green>Set spawn point for game: <gold>$gameId"))
 
         return CommandResult.Success
     }
 
     private fun handleUnknown(command: String): CommandResult {
-        return CommandResult.Error(Component.text("Unknown command: $command", NamedTextColor.RED))
+        return CommandResult.Error(prefixed("<red>Unknown command: $command"))
     }
 
     // Tab Completion Helpers
@@ -377,7 +374,7 @@ class MinigameCommand(private val plugin: IremiaMinigameCorePlugin) : CommandExe
     // Help System
 
     private fun showHelp(sender: CommandSender) {
-        sender.sendPrefixed(Component.text("Available Commands:", NamedTextColor.YELLOW))
+        sender.sendMessage(prefixed("<yellow>Available Commands:"))
 
         val helpEntries = listOf(
             "/minigame join <gameId>" to "Join a minigame",
@@ -405,33 +402,17 @@ class MinigameCommand(private val plugin: IremiaMinigameCorePlugin) : CommandExe
         }
 
         helpEntries.forEach { (command, description) ->
-            sender.sendMessage(
-                Component.text("  $command", NamedTextColor.GOLD)
-                    .append(Component.text(" - $description", NamedTextColor.GRAY))
-            )
+            sender.sendMessage(miniMessage.deserialize("<gold>  $command <gray>- $description"))
         }
     }
 }
 
 // Extension Functions for Cleaner Code
 
-/**
- * Require that the CommandSender is a Player, returning null with error message if not.
- */
 private fun CommandSender.requirePlayer(): Player? = this as? Player
 
-/**
- * Send a message with the command prefix.
- */
-private fun CommandSender.sendPrefixed(message: Component) {
-    sendMessage(MinigameCommand.PREFIX.append(message))
-}
-
-/**
- * Check permission and send error message if not granted.
- */
 private fun CommandSender.requirePermission(permission: String): Boolean {
     return hasPermission(permission).also {
-        if (!it) sendPrefixed(Component.text("You don't have permission.", NamedTextColor.RED))
+        if (!it) sendMessage(MinigameCommand.prefixed("<red>You don't have permission."))
     }
 }

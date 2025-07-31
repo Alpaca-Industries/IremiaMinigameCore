@@ -3,6 +3,7 @@ package org.alpacaindustries.iremiaminigamecore.api.impl;
 import org.alpacaindustries.iremiaminigamecore.api.IremiaMinigameAPI;
 import org.alpacaindustries.iremiaminigamecore.api.MinigameEventListener;
 import org.alpacaindustries.iremiaminigamecore.api.MinigameTypeInfo;
+import org.alpacaindustries.iremiaminigamecore.minigame.AddPlayerResult;
 import org.alpacaindustries.iremiaminigamecore.minigame.Minigame;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameFactory;
 import org.alpacaindustries.iremiaminigamecore.minigame.MinigameManager;
@@ -14,7 +15,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
-import java.util.Objects;
 
 /**
  * Implementation of the IremiaMinigameAPI
@@ -138,7 +138,8 @@ public class IremiaMinigameAPIImpl implements IremiaMinigameAPI {
   public boolean addPlayerToMinigame(@NotNull Player player, @NotNull String minigameId) {
     Objects.requireNonNull(player, "Player cannot be null");
     Objects.requireNonNull(minigameId, "minigameId cannot be null");
-    return minigameManager.addPlayerToGame(player, minigameId);
+    AddPlayerResult result = minigameManager.addPlayerToGame(player, minigameId);
+    return result instanceof AddPlayerResult.Success;
   }
 
   @Override

@@ -61,9 +61,10 @@ class EventNotifyingMinigame extends Minigame {
   }
 
   @Override
-  public void removePlayer(@NotNull Player player) {
-    delegate.removePlayer(player);
+  public boolean removePlayer(@NotNull Player player) {
+    boolean result = delegate.removePlayer(player);
     api.notifyListeners("playerLeave", player, this);
+    return result;
   }
 
   @Override

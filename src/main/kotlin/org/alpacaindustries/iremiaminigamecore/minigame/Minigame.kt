@@ -1,11 +1,12 @@
 package org.alpacaindustries.iremiaminigamecore.minigame
 
+import net.kyori.adventure.text.Component
+import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.entity.Player
+import org.bukkit.event.EventHandler
 import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
-import net.kyori.adventure.text.Component
-import org.bukkit.event.EventHandler
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -22,6 +23,10 @@ abstract class Minigame(
     val displayName: String,
     val manager: MinigameManager
 ) : Listener {
+    companion object {
+        @JvmStatic
+        fun javaClass(): Class<Minigame> = Minigame::class.java
+    }
 
     private val _players = Collections.synchronizedSet(mutableSetOf<UUID>())
     private val endListeners = Collections.synchronizedList(mutableListOf<Consumer<Minigame>>())
@@ -72,24 +77,28 @@ abstract class Minigame(
     /**
      * Get an unmodifiable view of the players
      */
+    @get:JvmName("getPlayers")
     val players: Set<UUID>
         get() = Collections.unmodifiableSet(_players)
 
     /**
      * Get the current player count
      */
+    @get:JvmName("getPlayerCount")
     val playerCount: Int
         get() = _players.size
 
     /**
      * Check if the minigame has been properly initialized
      */
+    @get:JvmName("isInitialized")
     val initialized: Boolean
         get() = isInitialized.get()
 
     /**
      * Check if the minigame has been destroyed
      */
+    @get:JvmName("isDestroyed")
     val destroyed: Boolean
         get() = isDestroyed.get()
 
@@ -125,7 +134,7 @@ abstract class Minigame(
         }
 
         if (_players.size < minPlayers) {
-            broadcastMessage(Component.text(MinigameConfig.getMsgNotEnoughPlayers()))
+            broadcastMessage(MinigameConfig.getMsgNotEnoughPlayers())
             return
         }
 
@@ -265,11 +274,25 @@ abstract class Minigame(
 
             _players.add(player.uniqueId)
             playerCache[player.uniqueId] = player
-            spawnPoint?.let {
+
+            if (state == MinigameState.RUNNING && isAllowJoinDuringGame) {
+                // Force player into spectator mode if joining mid-game
                 try {
-                    player.teleport(it)
+                    player.gameMode = GameMode.SPECTATOR
+                    player.sendMessage(
+                        MinigameConfig.getMsgGameInProgress()
+                            .append(Component.text(" You are now spectating and will join next round."))
+                    )
                 } catch (e: Exception) {
-                    manager.plugin.logger.warning("Failed to teleport ${player.name} to spawn point: ${e.message}")
+                    manager.plugin.logger.warning("Failed to set ${player.name} to spectator: ${e.message}")
+                }
+            } else {
+                spawnPoint?.let {
+                    try {
+                        player.teleport(it)
+                    } catch (e: Exception) {
+                        manager.plugin.logger.warning("Failed to teleport ${player.name} to spawn point: ${e.message}")
+                    }
                 }
             }
 
@@ -291,27 +314,40 @@ abstract class Minigame(
      * Remove a player from the minigame.
      *
      * @param player Player to remove
+     * @return true if the player was actually removed, false otherwise
      */
-    open fun removePlayer(player: Player) {
+    open fun removePlayer(player: Player): Boolean {
+        if (isDestroyed.get()) return false
         synchronized(_players) {
             if (!_players.contains(player.uniqueId)) {
-                return
+                return false
+            }
+
+            // Clean up player-specific resources before removal
+            try {
+                onPlayerCleanup(player)
+            } catch (e: Exception) {
+                manager.plugin.logger.warning("Error during player cleanup for ${player.name}: ${e.message}")
+                e.printStackTrace()
             }
 
             _players.remove(player.uniqueId)
 
+            // Call onPlayerLeave after removal
             try {
-                onPlayerCleanup(player)
                 onPlayerLeave(player)
             } catch (e: Exception) {
                 manager.plugin.logger.warning("Error during player leave for ${player.name}: ${e.message}")
                 e.printStackTrace()
             }
 
+            manager.plugin.logger.fine("Player ${player.name} removed from minigame $id")
+
             // Check game state after player removal
             if (!isDestroyed.get()) {
                 checkGameStateAfterPlayerLeave()
             }
+            return true
         }
     }
 
@@ -322,14 +358,14 @@ abstract class Minigame(
         when (state) {
             MinigameState.RUNNING -> {
                 if (_players.size < minPlayers) {
-                    broadcastMessage(Component.text(MinigameConfig.getMsgPlayersRemaining()))
+                    broadcastMessage(MinigameConfig.getMsgPlayersRemaining())
                     end()
                 }
             }
             MinigameState.COUNTDOWN -> {
                 if (_players.size < minPlayers) {
                     setState(MinigameState.WAITING)
-                    broadcastMessage(Component.text(MinigameConfig.getMsgCountdownCancelled()))
+                    broadcastMessage(MinigameConfig.getMsgCountdownCancelled())
                 }
             }
             else -> { /* No action needed for other states */ }
@@ -366,7 +402,7 @@ abstract class Minigame(
      *
      * @param listener Consumer that takes the ended minigame
      */
-    fun addEndListener(listener: Consumer<Minigame>) {
+    open fun addEndListener(listener: Consumer<Minigame>) {
         checkNotDestroyed()
         endListeners.add(listener)
     }
@@ -377,7 +413,7 @@ abstract class Minigame(
      * @param listener Consumer to remove
      * @return true if the listener was removed
      */
-    fun removeEndListener(listener: Consumer<Minigame>): Boolean {
+    open fun removeEndListener(listener: Consumer<Minigame>): Boolean {
         return endListeners.remove(listener)
     }
 
@@ -521,7 +557,7 @@ abstract class Minigame(
      * Get all valid online players with automatic cleanup.
      * This method is thread-safe and performs inline cleanup of offline players.
      */
-    fun getValidOnlinePlayers(): List<Player> {
+    open fun getValidOnlinePlayers(): List<Player> {
         val validPlayers = mutableListOf<Player>()
         val toRemove = mutableSetOf<UUID>()
 
@@ -595,7 +631,7 @@ abstract class Minigame(
      * Get detailed status information about this minigame.
      * Useful for debugging and monitoring.
      */
-    fun getStatusInfo(): String {
+    open fun getStatusInfo(): String {
         return buildString {
             append("Minigame[$id]: ")
             append("State=$state, ")
